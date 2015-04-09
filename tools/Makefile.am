@@ -1,7 +1,7 @@
 man_MANS = \
 	gst-device-monitor-@GST_API_VERSION@.1 \
 	gst-discoverer-@GST_API_VERSION@.1 \
-	gst-play-@GST_API_VERSION@.1	
+	gst-play-@GST_API_VERSION@.1
 
 bin_PROGRAMS = \
 	gst-device-monitor-@GST_API_VERSION@ \

@@ -18,13 +18,13 @@ DEB_MAKE_CHECK_TARGET = check || true
 # upstream version with epoch
 gst_version := $(shell dpkg-parsechangelog | sed -n 's/Version: //p' | cut -d '-' -f 1)
 gst_major := 1
-gst_minor := 0
+gst_minor := 5
 gst_abi := $(gst_major).$(gst_minor)
 # gstreamer library package names
 gst_lib := libgstreamer$(gst_abi)-0
 gst_lib_dev := libgstreamer$(gst_abi)-dev
 # what gstreamer version is needed
-gst_lib_dev_dep := $(gst_lib_dev) (>= 1.5.0.1+git20150316)
+gst_lib_dev_dep := $(gst_lib_dev) (>= 1.5.0.1~0)
 
 gst_pkgname := gstreamer$(gst_abi)
 gst_deb_abi := $(gst_abi)-0

@@ -1,9 +1,12 @@
-libgstallocators-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
+libgstallocators-1.5.so.0 libgstreamer-plugins-base1.5-0 #MINVER#
  gst_dmabuf_allocator_alloc@Base 1.2.0
  gst_dmabuf_allocator_new@Base 1.2.0
  gst_dmabuf_memory_get_fd@Base 1.2.0
+ gst_fd_allocator_get_type@Base 1.5.0.1~0
+ gst_fd_memory_get_fd@Base 1.5.0.1~0
  gst_is_dmabuf_memory@Base 1.2.0
-libgstapp-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
+ gst_is_fd_memory@Base 1.5.0.1~0
+libgstapp-1.5.so.0 libgstreamer-plugins-base1.5-0 #MINVER#
  gst_app_sink_get_caps@Base 1.0.0
  gst_app_sink_get_drop@Base 1.0.0
  gst_app_sink_get_emit_signals@Base 1.0.0
@@ -27,7 +30,7 @@ libgstapp-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
  gst_app_src_get_stream_type@Base 1.0.0
  gst_app_src_get_type@Base 1.0.0
  gst_app_src_push_buffer@Base 1.0.0
- gst_app_src_push_sample@Base 1.5.0.1+git20150316
+ gst_app_src_push_sample@Base 1.5.0.1~0
  gst_app_src_set_callbacks@Base 1.0.0
  gst_app_src_set_caps@Base 1.0.0
  gst_app_src_set_emit_signals@Base 1.0.0
@@ -36,7 +39,7 @@ libgstapp-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
  gst_app_src_set_size@Base 1.0.0
  gst_app_src_set_stream_type@Base 1.0.0
  gst_app_stream_type_get_type@Base 1.0.0
-libgstaudio-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
+libgstaudio-1.5.so.0 libgstreamer-plugins-base1.5-0 #MINVER#
  _gst_audio_decoder_error@Base 1.0.0
  gst_audio_base_sink_create_ringbuffer@Base 1.0.0
  gst_audio_base_sink_get_alignment_threshold@Base 1.0.0
@@ -92,7 +95,7 @@ libgstaudio-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
  gst_audio_decoder_get_type@Base 1.0.0
  gst_audio_decoder_merge_tags@Base 1.0.0
  gst_audio_decoder_negotiate@Base 1.0.0
- gst_audio_decoder_proxy_getcaps@Base 1.5.0.1+git20150316
+ gst_audio_decoder_proxy_getcaps@Base 1.5.0.1~0
  gst_audio_decoder_set_drainable@Base 1.0.0
  gst_audio_decoder_set_estimate_rate@Base 1.0.0
  gst_audio_decoder_set_latency@Base 1.0.0
@@ -207,7 +210,7 @@ libgstaudio-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
  gst_stream_volume_get_volume@Base 1.0.0
  gst_stream_volume_set_mute@Base 1.0.0
  gst_stream_volume_set_volume@Base 1.0.0
-libgstfft-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
+libgstfft-1.5.so.0 libgstreamer-plugins-base1.5-0 #MINVER#
  gst_fft_f32_fft@Base 1.0.0
  gst_fft_f32_free@Base 1.0.0
  gst_fft_f32_inverse_fft@Base 1.0.0
@@ -229,7 +232,7 @@ libgstfft-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
  gst_fft_s32_inverse_fft@Base 1.0.0
  gst_fft_s32_new@Base 1.0.0
  gst_fft_s32_window@Base 1.0.0
-libgstpbutils-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
+libgstpbutils-1.5.so.0 libgstreamer-plugins-base1.5-0 #MINVER#
  gst_codec_utils_aac_caps_set_level_and_profile@Base 1.0.0
  gst_codec_utils_aac_get_index_from_sample_rate@Base 1.2.0
  gst_codec_utils_aac_get_level@Base 1.0.0
@@ -315,7 +318,7 @@ libgstpbutils-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
  gst_encoding_list_available_categories@Base 1.0.0
  gst_encoding_profile_find@Base 1.0.0
  gst_encoding_profile_from_discoverer@Base 1.0.0
- gst_encoding_profile_get_allow_dynamic_output@Base 1.5.0.1+git20150316
+ gst_encoding_profile_get_allow_dynamic_output@Base 1.5.0.1~0
  gst_encoding_profile_get_description@Base 1.0.0
  gst_encoding_profile_get_file_extension@Base 1.2.0
  gst_encoding_profile_get_format@Base 1.0.0
@@ -328,7 +331,7 @@ libgstpbutils-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
  gst_encoding_profile_get_type@Base 1.0.0
  gst_encoding_profile_get_type_nick@Base 1.0.0
  gst_encoding_profile_is_equal@Base 1.0.0
- gst_encoding_profile_set_allow_dynamic_output@Base 1.5.0.1+git20150316
+ gst_encoding_profile_set_allow_dynamic_output@Base 1.5.0.1~0
  gst_encoding_profile_set_description@Base 1.0.0
  gst_encoding_profile_set_format@Base 1.0.0
  gst_encoding_profile_set_name@Base 1.0.0
@@ -358,9 +361,9 @@ libgstpbutils-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
  gst_install_plugins_context_free@Base 1.0.0
  gst_install_plugins_context_get_type@Base 1.0.0
  gst_install_plugins_context_new@Base 1.0.0
- gst_install_plugins_context_set_confirm_search@Base 1.5.0.1+git20150316
- gst_install_plugins_context_set_desktop_id@Base 1.5.0.1+git20150316
- gst_install_plugins_context_set_startup_notification_id@Base 1.5.0.1+git20150316
+ gst_install_plugins_context_set_confirm_search@Base 1.5.0.1~0
+ gst_install_plugins_context_set_desktop_id@Base 1.5.0.1~0
+ gst_install_plugins_context_set_startup_notification_id@Base 1.5.0.1~0
  gst_install_plugins_context_set_xid@Base 1.0.0
  gst_install_plugins_installation_in_progress@Base 1.0.0
  gst_install_plugins_return_get_name@Base 1.0.0
@@ -390,7 +393,7 @@ libgstpbutils-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
  gst_pb_utils_init@Base 1.0.0
  gst_plugins_base_version@Base 1.0.0
  gst_plugins_base_version_string@Base 1.0.0
-libgstriff-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
+libgstriff-1.5.so.0 libgstreamer-plugins-base1.5-0 #MINVER#
  gst_riff_create_audio_caps@Base 1.0.0
  gst_riff_create_audio_template_caps@Base 1.0.0
  gst_riff_create_iavs_caps@Base 1.0.0
@@ -406,7 +409,7 @@ libgstriff-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
  gst_riff_parse_strf_vids@Base 1.0.0
  gst_riff_parse_strh@Base 1.0.0
  gst_riff_read_chunk@Base 1.0.0
-libgstrtp-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
+libgstrtp-1.5.so.0 libgstreamer-plugins-base1.5-0 #MINVER#
  gst_rtcp_buffer_add_packet@Base 1.0.0
  gst_rtcp_buffer_get_first_packet@Base 1.0.0
  gst_rtcp_buffer_get_packet_count@Base 1.0.0
@@ -533,7 +536,7 @@ libgstrtp-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
  gst_rtp_hdrext_set_ntp_64@Base 1.2.0
  gst_rtp_payload_info_for_name@Base 1.0.0
  gst_rtp_payload_info_for_pt@Base 1.0.0
-libgstrtsp-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
+libgstrtsp-1.5.so.0 libgstreamer-plugins-base1.5-0 #MINVER#
  gst_rtsp_auth_method_get_type@Base 1.0.0
  gst_rtsp_connection_accept@Base 1.0.0
  gst_rtsp_connection_clear_auth_params@Base 1.0.0
@@ -591,13 +594,13 @@ libgstrtsp-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
  gst_rtsp_header_field_get_type@Base 1.0.0
  gst_rtsp_lower_trans_get_type@Base 1.0.0
  gst_rtsp_message_add_header@Base 1.0.0
- gst_rtsp_message_add_header_by_name@Base 1.5.0.1+git20150316
+ gst_rtsp_message_add_header_by_name@Base 1.5.0.1~0
  gst_rtsp_message_append_headers@Base 1.0.0
  gst_rtsp_message_dump@Base 1.0.0
  gst_rtsp_message_free@Base 1.0.0
  gst_rtsp_message_get_body@Base 1.0.0
  gst_rtsp_message_get_header@Base 1.0.0
- gst_rtsp_message_get_header_by_name@Base 1.5.0.1+git20150316
+ gst_rtsp_message_get_header_by_name@Base 1.5.0.1~0
  gst_rtsp_message_get_type@Base 1.0.0
  gst_rtsp_message_init@Base 1.0.0
  gst_rtsp_message_init_data@Base 1.0.0
@@ -611,12 +614,12 @@ libgstrtsp-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
  gst_rtsp_message_parse_request@Base 1.0.0
  gst_rtsp_message_parse_response@Base 1.0.0
  gst_rtsp_message_remove_header@Base 1.0.0
- gst_rtsp_message_remove_header_by_name@Base 1.5.0.1+git20150316
+ gst_rtsp_message_remove_header_by_name@Base 1.5.0.1~0
  gst_rtsp_message_set_body@Base 1.0.0
  gst_rtsp_message_steal_body@Base 1.0.0
  gst_rtsp_message_take_body@Base 1.0.0
  gst_rtsp_message_take_header@Base 1.0.0
- gst_rtsp_message_take_header_by_name@Base 1.5.0.1+git20150316
+ gst_rtsp_message_take_header_by_name@Base 1.5.0.1~0
  gst_rtsp_message_unset@Base 1.0.0
  gst_rtsp_method_as_text@Base 1.0.0
  gst_rtsp_method_get_type@Base 1.0.0
@@ -661,7 +664,7 @@ libgstrtsp-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
  gst_rtsp_watch_unref@Base 1.0.0
  gst_rtsp_watch_wait_backlog@Base 1.4.0
  gst_rtsp_watch_write_data@Base 1.0.0
-libgstsdp-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
+libgstsdp-1.5.so.0 libgstreamer-plugins-base1.5-0 #MINVER#
  gst_mikey_message_add_cs_srtp@Base 1.4.0
  gst_mikey_message_add_payload@Base 1.4.0
  gst_mikey_message_add_pke@Base 1.4.0
@@ -825,7 +828,7 @@ libgstsdp-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
  gst_sdp_time_set@Base 1.2.0
  gst_sdp_zone_clear@Base 1.2.0
  gst_sdp_zone_set@Base 1.2.0
-libgsttag-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
+libgsttag-1.5.so.0 libgstreamer-plugins-base1.5-0 #MINVER#
  gst_tag_check_language_code@Base 1.0.0
  gst_tag_demux_get_type@Base 1.0.0
  gst_tag_demux_result_get_type@Base 1.0.0
@@ -878,7 +881,7 @@ libgsttag-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
  gst_tag_xmp_writer_remove_schema@Base 1.0.0
  gst_tag_xmp_writer_tag_list_to_xmp_buffer@Base 1.0.0
  gst_vorbis_tag_add@Base 1.0.0
-libgstvideo-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
+libgstvideo-1.5.so.0 libgstreamer-plugins-base1.5-0 #MINVER#
  _gst_video_decoder_error@Base 1.0.0
  gst_buffer_add_video_gl_texture_upload_meta@Base 1.2.0
  gst_buffer_add_video_meta@Base 1.0.0
@@ -951,24 +954,24 @@ libgstvideo-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
  gst_video_codec_state_get_type@Base 1.0.0
  gst_video_codec_state_ref@Base 1.0.0
  gst_video_codec_state_unref@Base 1.0.0
- gst_video_color_matrix_get_Kr_Kb@Base 1.5.0.1+git20150316
+ gst_video_color_matrix_get_Kr_Kb@Base 1.5.0.1~0
  gst_video_color_matrix_get_type@Base 1.0.0
- gst_video_color_primaries_get_info@Base 1.5.0.1+git20150316
+ gst_video_color_primaries_get_info@Base 1.5.0.1~0
  gst_video_color_primaries_get_type@Base 1.0.0
  gst_video_color_range_get_type@Base 1.0.0
  gst_video_color_range_offsets@Base 1.0.0
- gst_video_color_transfer_decode@Base 1.5.0.1+git20150316
- gst_video_color_transfer_encode@Base 1.5.0.1+git20150316
+ gst_video_color_transfer_decode@Base 1.5.0.1~0
+ gst_video_color_transfer_encode@Base 1.5.0.1~0
  gst_video_colorimetry_from_string@Base 1.0.0
  gst_video_colorimetry_matches@Base 1.0.0
  gst_video_colorimetry_to_string@Base 1.0.0
  gst_video_convert_sample@Base 1.0.0
  gst_video_convert_sample_async@Base 1.0.0
- gst_video_converter_frame@Base 1.5.0.1+git20150316
- gst_video_converter_free@Base 1.5.0.1+git20150316
- gst_video_converter_get_config@Base 1.5.0.1+git20150316
- gst_video_converter_new@Base 1.5.0.1+git20150316
- gst_video_converter_set_config@Base 1.5.0.1+git20150316
+ gst_video_converter_frame@Base 1.5.0.1~0
+ gst_video_converter_free@Base 1.5.0.1~0
+ gst_video_converter_get_config@Base 1.5.0.1~0
+ gst_video_converter_new@Base 1.5.0.1~0
+ gst_video_converter_set_config@Base 1.5.0.1~0
  gst_video_crop_meta_api_get_type@Base 1.0.0
  gst_video_crop_meta_get_info@Base 1.0.0
  gst_video_decoder_add_to_frame@Base 1.0.0
@@ -994,7 +997,7 @@ libgstvideo-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
  gst_video_decoder_have_frame@Base 1.0.0
  gst_video_decoder_merge_tags@Base 1.0.0
  gst_video_decoder_negotiate@Base 1.0.0
- gst_video_decoder_proxy_getcaps@Base 1.5.0.1+git20150316
+ gst_video_decoder_proxy_getcaps@Base 1.5.0.1~0
  gst_video_decoder_release_frame@Base 1.2.2
  gst_video_decoder_set_estimate_rate@Base 1.0.0
  gst_video_decoder_set_latency@Base 1.0.0
@@ -1002,11 +1005,11 @@ libgstvideo-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
  gst_video_decoder_set_needs_format@Base 1.4.0
  gst_video_decoder_set_output_state@Base 1.0.0
  gst_video_decoder_set_packetized@Base 1.0.0
- gst_video_dither_flags_get_type@Base 1.5.0.1+git20150316
- gst_video_dither_free@Base 1.5.0.1+git20150316
- gst_video_dither_line@Base 1.5.0.1+git20150316
- gst_video_dither_method_get_type@Base 1.5.0.1+git20150316
- gst_video_dither_new@Base 1.5.0.1+git20150316
+ gst_video_dither_flags_get_type@Base 1.5.0.1~0
+ gst_video_dither_free@Base 1.5.0.1~0
+ gst_video_dither_line@Base 1.5.0.1~0
+ gst_video_dither_method_get_type@Base 1.5.0.1~0
+ gst_video_dither_new@Base 1.5.0.1~0
  gst_video_encoder_allocate_output_buffer@Base 1.0.0
  gst_video_encoder_allocate_output_frame@Base 1.0.0
  gst_video_encoder_finish_frame@Base 1.0.0
@@ -1049,7 +1052,7 @@ libgstvideo-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
  gst_video_gl_texture_upload_meta_api_get_type@Base 1.2.0
  gst_video_gl_texture_upload_meta_get_info@Base 1.2.0
  gst_video_gl_texture_upload_meta_upload@Base 1.2.0
- gst_video_guess_framerate@Base 1.5.0.1+git20150316
+ gst_video_guess_framerate@Base 1.5.0.1~0
  gst_video_info_align@Base 1.0.0
  gst_video_info_convert@Base 1.0.0
  gst_video_info_from_caps@Base 1.0.0
@@ -1108,17 +1111,17 @@ libgstvideo-1.0.so.0 libgstreamer-plugins-base1.0-0 #MINVER#
  gst_video_pack_flags_get_type@Base 1.0.0
  gst_video_region_of_interest_meta_api_get_type@Base 1.2.0
  gst_video_region_of_interest_meta_get_info@Base 1.2.0
- gst_video_resampler_clear@Base 1.5.0.1+git20150316
- gst_video_resampler_flags_get_type@Base 1.5.0.1+git20150316
- gst_video_resampler_init@Base 1.5.0.1+git20150316
- gst_video_resampler_method_get_type@Base 1.5.0.1+git20150316
- gst_video_scaler_2d@Base 1.5.0.1+git20150316
- gst_video_scaler_combine_packed_YUV@Base 1.5.0.1+git20150316
- gst_video_scaler_free@Base 1.5.0.1+git20150316
- gst_video_scaler_get_coeff@Base 1.5.0.1+git20150316
- gst_video_scaler_horizontal@Base 1.5.0.1+git20150316
- gst_video_scaler_new@Base 1.5.0.1+git20150316
- gst_video_scaler_vertical@Base 1.5.0.1+git20150316
+ gst_video_resampler_clear@Base 1.5.0.1~0
+ gst_video_resampler_flags_get_type@Base 1.5.0.1~0
+ gst_video_resampler_init@Base 1.5.0.1~0
+ gst_video_resampler_method_get_type@Base 1.5.0.1~0
+ gst_video_scaler_2d@Base 1.5.0.1~0
+ gst_video_scaler_combine_packed_YUV@Base 1.5.0.1~0
+ gst_video_scaler_free@Base 1.5.0.1~0
+ gst_video_scaler_get_coeff@Base 1.5.0.1~0
+ gst_video_scaler_horizontal@Base 1.5.0.1~0
+ gst_video_scaler_new@Base 1.5.0.1~0
+ gst_video_scaler_vertical@Base 1.5.0.1~0
  gst_video_sink_center_rect@Base 1.0.0
  gst_video_sink_get_type@Base 1.0.0
  gst_video_tile_get_index@Base 1.4.0

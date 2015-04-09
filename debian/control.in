@@ -8,8 +8,6 @@ Uploaders: Loïc Minier <lool@debian.org>,
            Sjoerd Simons <sjoerd@debian.org>
 Build-Depends: BUILDDEPS
 Standards-Version: 3.9.3
-Vcs-Git: git://anonscm.debian.org/pkg-gstreamer/gst-plugins-base@GST_ABI@.git
-Vcs-Browser: http://anonscm.debian.org/gitweb/?p=pkg-gstreamer/gst-plugins-base@GST_ABI@.git;a=summary
 Homepage: http://gstreamer.freedesktop.org/modules/gst-plugins-base.html
 
 Package: @GST_PKGNAME@-plugins-base-apps
