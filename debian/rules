@@ -105,9 +105,6 @@ pre-build::
 	sed 's/@GST_ABI@/$(gst_abi)/g' \
 		debian/libgstreamer-plugins-base.install \
 		>debian/libgstreamer-plugins-base$(gst_deb_abi).install
-	rm -f debian/libgstreamer-plugins-base$(gst_deb_abi).symbols
-	cp debian/libgstreamer-plugins-base.symbols \
-		debian/libgstreamer-plugins-base$(gst_deb_abi).symbols
 	rm -f debian/libgstreamer-plugins-base$(gst_abi)-dev.install
 	sed 's/@GST_ABI@/$(gst_abi)/g' \
 		debian/libgstreamer-plugins-base-dev.install \
@@ -158,7 +155,6 @@ clean::
 	done
 	rm -f debian/gir1.2-gst-plugins-base-$(gst_abi).install
 	rm -f debian/libgstreamer-plugins-base$(gst_deb_abi).install
-	rm -f debian/libgstreamer-plugins-base$(gst_deb_abi).symbols
 	rm -f debian/libgstreamer-plugins-base$(gst_abi)-dev.install
 	-rm -rf $(CURDIR)/fake-home
 
