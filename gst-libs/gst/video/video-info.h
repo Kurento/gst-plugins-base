@@ -55,6 +55,9 @@ typedef enum {
   GST_VIDEO_INTERLACE_MODE_FIELDS
 } GstVideoInterlaceMode;
 
+const gchar *          gst_video_interlace_mode_to_string    (GstVideoInterlaceMode mode);
+GstVideoInterlaceMode  gst_video_interlace_mode_from_string  (const gchar * mode);
+
 /**
  * GstVideoFlags:
  * @GST_VIDEO_FLAG_NONE: no flags
@@ -140,6 +143,9 @@ struct _GstVideoInfo {
 #define GST_VIDEO_INFO_PAR_D(i)          ((i)->par_d)
 #define GST_VIDEO_INFO_FPS_N(i)          ((i)->fps_n)
 #define GST_VIDEO_INFO_FPS_D(i)          ((i)->fps_d)
+
+#define GST_VIDEO_INFO_COLORIMETRY(i) ((i)->colorimetry)
+#define GST_VIDEO_INFO_CHROMA_SITE(i) ((i)->chroma_site)
 
 /* dealing with GstVideoInfo flags */
 #define GST_VIDEO_INFO_FLAG_IS_SET(i,flag) ((GST_VIDEO_INFO_FLAGS(i) & (flag)) == (flag))

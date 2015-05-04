@@ -30,8 +30,10 @@ EXPORTS
 	gst_navigation_message_get_type
 	gst_navigation_message_new_angles_changed
 	gst_navigation_message_new_commands_changed
+	gst_navigation_message_new_event
 	gst_navigation_message_new_mouse_over
 	gst_navigation_message_parse_angles_changed
+	gst_navigation_message_parse_event
 	gst_navigation_message_parse_mouse_over
 	gst_navigation_message_type_get_type
 	gst_navigation_query_get_type
@@ -80,6 +82,7 @@ EXPORTS
 	gst_video_color_transfer_decode
 	gst_video_color_transfer_encode
 	gst_video_colorimetry_from_string
+	gst_video_colorimetry_is_equal
 	gst_video_colorimetry_matches
 	gst_video_colorimetry_to_string
 	gst_video_convert_sample
@@ -177,7 +180,9 @@ EXPORTS
 	gst_video_info_is_equal
 	gst_video_info_set_format
 	gst_video_info_to_caps
+	gst_video_interlace_mode_from_string
 	gst_video_interlace_mode_get_type
+	gst_video_interlace_mode_to_string
 	gst_video_meta_api_get_type
 	gst_video_meta_get_info
 	gst_video_meta_map
