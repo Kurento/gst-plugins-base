@@ -1105,13 +1105,6 @@ gst_video_decoder_negotiate_default_caps (GstVideoDecoder * decoder)
   gst_video_codec_state_unref (state);
   gst_caps_unref (caps);
 
-  if (!gst_video_decoder_negotiate (decoder)) {
-    GST_INFO_OBJECT (decoder,
-        "Failed to negotiate default caps for initial gap");
-    gst_pad_mark_reconfigure (decoder->srcpad);
-    return FALSE;
-  }
-
   return TRUE;
 
 caps_error:
@@ -1213,6 +1206,7 @@ gst_video_decoder_sink_event_default (GstVideoDecoder * decoder,
     case GST_EVENT_GAP:
     {
       GstFlowReturn flow_ret = GST_FLOW_OK;
+      gboolean needs_reconfigure = FALSE;
 
       flow_ret = gst_video_decoder_drain_out (decoder, FALSE);
       ret = (flow_ret == GST_FLOW_OK);
@@ -1226,6 +1220,16 @@ gst_video_decoder_sink_event_default (GstVideoDecoder * decoder,
               ("Decoder output not negotiated before GAP event."));
           forward_immediate = TRUE;
           break;
+        }
+        needs_reconfigure = TRUE;
+      }
+
+      needs_reconfigure = gst_pad_check_reconfigure (decoder->srcpad)
+          || needs_reconfigure;
+      if (decoder->priv->output_state_changed || needs_reconfigure) {
+        if (!gst_video_decoder_negotiate_unlocked (decoder)) {
+          GST_WARNING_OBJECT (decoder, "Failed to negotiate with downstream");
+          gst_pad_mark_reconfigure (decoder->srcpad);
         }
       }
       GST_VIDEO_DECODER_STREAM_UNLOCK (decoder);
@@ -2949,23 +2953,33 @@ gst_video_decoder_clip_and_push_buf (GstVideoDecoder * decoder, GstBuffer * buf)
 
   if (GST_CLOCK_TIME_IS_VALID (start) && GST_CLOCK_TIME_IS_VALID (duration)) {
     stop = start + duration;
+  } else if (GST_CLOCK_TIME_IS_VALID (start)
+      && !GST_CLOCK_TIME_IS_VALID (duration)) {
+    /* 2 second frame duration is rather unlikely... but if we don't clip
+     * away buffers that far before the segment we can cause the pipeline to
+     * lockup. This can happen if audio is properly clipped, and thus the
+     * audio sink does not preroll yet but the video sink prerolls because
+     * we already outputted a buffer here... and then queues run full.
+     *
+     * In the worst case we will clip one buffer too many here now if no
+     * framerate is given, no buffer duration is given and the actual
+     * framerate is less than 0.5fps */
+    stop = start + 2 * GST_SECOND;
   }
 
   segment = &decoder->output_segment;
   if (gst_segment_clip (segment, GST_FORMAT_TIME, start, stop, &cstart, &cstop)) {
-
     GST_BUFFER_PTS (buf) = cstart;
 
-    if (stop != GST_CLOCK_TIME_NONE)
+    if (stop != GST_CLOCK_TIME_NONE && GST_CLOCK_TIME_IS_VALID (duration))
       GST_BUFFER_DURATION (buf) = cstop - cstart;
 
     GST_LOG_OBJECT (decoder,
         "accepting buffer inside segment: %" GST_TIME_FORMAT " %"
         GST_TIME_FORMAT " seg %" GST_TIME_FORMAT " to %" GST_TIME_FORMAT
         " time %" GST_TIME_FORMAT,
-        GST_TIME_ARGS (GST_BUFFER_PTS (buf)),
-        GST_TIME_ARGS (GST_BUFFER_PTS (buf) +
-            GST_BUFFER_DURATION (buf)),
+        GST_TIME_ARGS (cstart),
+        GST_TIME_ARGS (cstop),
         GST_TIME_ARGS (segment->start), GST_TIME_ARGS (segment->stop),
         GST_TIME_ARGS (segment->time));
   } else {

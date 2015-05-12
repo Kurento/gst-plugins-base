@@ -34,15 +34,14 @@
  * <refsect2>
  * <title>Example pipelines</title>
  * |[
- * gst-launch -v filesrc location=videotestsrc.ogg ! oggdemux ! theoradec ! videoconvert ! videoscale ! ximagesink
- * ]| Decode an Ogg/Theora and display the video using ximagesink. Since
- * ximagesink cannot perform scaling, the video scaling will be performed by
- * videoscale when you resize the video window.
+ * gst-launch-1.0 -v filesrc location=videotestsrc.ogg ! oggdemux ! theoradec ! videoconvert ! videoscale ! autovideosink
+ * ]| Decode an Ogg/Theora and display the video. If the video sink chosen
+ * cannot perform scaling, the video scaling will be performed by videoscale
+ * when you resize the video window.
  * To create the test Ogg/Theora file refer to the documentation of theoraenc.
  * |[
- * gst-launch -v filesrc location=videotestsrc.ogg ! oggdemux ! theoradec ! videoscale ! video/x-raw, width=50 ! xvimagesink
- * ]| Decode an Ogg/Theora and display the video using xvimagesink with a width
- * of 50.
+ * gst-launch-1.0 -v filesrc location=videotestsrc.ogg ! oggdemux ! theoradec ! videoconvert ! videoscale ! video/x-raw,width=100 ! autovideosink
+ * ]| Decode an Ogg/Theora and display the video with a width of 100.
  * </refsect2>
  */
 
@@ -603,10 +602,11 @@ gst_video_scale_set_info (GstVideoFilter * filter, GstCaps * in,
         out_info->width - videoscale->borders_w,
         GST_VIDEO_CONVERTER_OPT_DEST_HEIGHT, G_TYPE_INT,
         out_info->height - videoscale->borders_h,
-        GST_VIDEO_CONVERTER_OPT_MATRIX_MODE, G_TYPE_STRING, "none",
-        GST_VIDEO_CONVERTER_OPT_DITHER_METHOD, GST_TYPE_VIDEO_DITHER_METHOD,
-        GST_VIDEO_DITHER_NONE, GST_VIDEO_CONVERTER_OPT_CHROMA_MODE,
-        G_TYPE_STRING, "none", NULL);
+        GST_VIDEO_CONVERTER_OPT_MATRIX_MODE, GST_TYPE_VIDEO_MATRIX_MODE,
+        GST_VIDEO_MATRIX_MODE_NONE, GST_VIDEO_CONVERTER_OPT_DITHER_METHOD,
+        GST_TYPE_VIDEO_DITHER_METHOD, GST_VIDEO_DITHER_NONE,
+        GST_VIDEO_CONVERTER_OPT_CHROMA_MODE, GST_TYPE_VIDEO_CHROMA_MODE,
+        GST_VIDEO_CHROMA_MODE_NONE, NULL);
 
     if (videoscale->gamma_decode) {
       gst_structure_set (options,
