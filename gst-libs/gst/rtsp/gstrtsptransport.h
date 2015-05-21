@@ -72,6 +72,8 @@ typedef enum {
  *
  * The transfer profile to use.
  */
+/* FIXME 2.0: This should probably be an enum, not flags and maybe be replaced
+ * by GstRTPTransport */
 typedef enum {
   GST_RTSP_PROFILE_UNKNOWN =  0,
   GST_RTSP_PROFILE_AVP     = (1 << 0),
@@ -79,9 +81,6 @@ typedef enum {
   GST_RTSP_PROFILE_AVPF    = (1 << 2),
   GST_RTSP_PROFILE_SAVPF   = (1 << 3),
 } GstRTSPProfile;
-
-#define GST_TYPE_RTSP_PROFILE (gst_rtsp_profile_get_type())
-GType gst_rtsp_profile_get_type (void);
 
 /**
  * GstRTSPLowerTrans:
@@ -102,9 +101,6 @@ typedef enum {
   GST_RTSP_LOWER_TRANS_HTTP      = (1 << 4),
   GST_RTSP_LOWER_TRANS_TLS       = (1 << 5)
 } GstRTSPLowerTrans;
-
-#define GST_TYPE_RTSP_LOWER_TRANS (gst_rtsp_lower_trans_get_type())
-GType gst_rtsp_lower_trans_get_type (void);
 
 typedef struct _GstRTSPRange GstRTSPRange;
 typedef struct _GstRTSPTransport GstRTSPTransport;
