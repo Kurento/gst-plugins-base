@@ -91,6 +91,8 @@ static gboolean play_timeout (gpointer user_data);
 static void play_about_to_finish (GstElement * playbin, gpointer user_data);
 static void play_reset (GstPlay * play);
 static void play_set_relative_volume (GstPlay * play, gdouble volume_step);
+static gboolean play_do_seek (GstPlay * play, gint64 pos, gdouble rate,
+    GstPlayTrickMode mode);
 
 /* *INDENT-OFF* */
 static void gst_play_printf (const gchar * format, ...) G_GNUC_PRINTF (1, 2);
@@ -231,7 +233,8 @@ play_set_relative_volume (GstPlay * play, gdouble volume_step)
   gst_stream_volume_set_volume (GST_STREAM_VOLUME (play->playbin),
       GST_STREAM_VOLUME_FORMAT_CUBIC, volume);
 
-  g_print ("Volume: %.0f%%                  \n", volume * 100);
+  g_print (_("Volume: %.0f%%"), volume * 100);
+  g_print ("                  \n");
 }
 
 /* returns TRUE if something was installed and we should restart playback */
@@ -320,7 +323,7 @@ play_bus_msg (GstBus * bus, GstMessage * msg, gpointer user_data)
       g_print ("\n");
       /* and switch to next item in list */
       if (!play_next (play)) {
-        g_print ("Reached end of play list.\n");
+        g_print ("%s\n", _("Reached end of play list."));
         g_main_loop_quit (play->loop);
       }
       break;
@@ -366,7 +369,7 @@ play_bus_msg (GstBus * bus, GstMessage * msg, gpointer user_data)
       }
       /* try next item in list then */
       if (!play_next (play)) {
-        g_print ("Reached end of play list.\n");
+        g_print ("%s\n", _("Reached end of play list."));
         g_main_loop_quit (play->loop);
       }
       break;
@@ -500,7 +503,8 @@ play_uri (GstPlay * play, const gchar * next_uri)
   play_reset (play);
 
   loc = play_uri_get_display_name (play, next_uri);
-  g_print ("Now playing %s\n", loc);
+  g_print (_("Now playing %s"), loc);
+  g_print ("\n");
   g_free (loc);
 
   g_object_set (play->playbin, "uri", next_uri, NULL);
@@ -563,7 +567,8 @@ play_about_to_finish (GstElement * playbin, gpointer user_data)
 
   next_uri = play->uris[next_idx];
   loc = play_uri_get_display_name (play, next_uri);
-  g_print ("About to finish, preparing next title: %s\n", loc);
+  g_print (_("About to finish, preparing next title: %s"), loc);
+  g_print ("\n");
   g_free (loc);
 
   g_object_set (play->playbin, "uri", next_uri, NULL);
@@ -685,15 +690,14 @@ relative_seek (GstPlay * play, gdouble percent)
   pos = pos + dur * percent;
   if (pos > dur) {
     if (!play_next (play)) {
-      g_print ("\nReached end of play list.\n");
+      g_print ("\n%s\n", _("Reached end of play list."));
       g_main_loop_quit (play->loop);
     }
   } else {
     if (pos < 0)
       pos = 0;
-    if (!gst_element_seek_simple (play->playbin, GST_FORMAT_TIME,
-            GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT, pos))
-      goto seek_failed;
+
+    play_do_seek (play, pos, play->rate, play->trick_mode);
   }
 
   return;
@@ -708,16 +712,23 @@ static gboolean
 play_set_rate_and_trick_mode (GstPlay * play, gdouble rate,
     GstPlayTrickMode mode)
 {
-  GstSeekFlags seek_flags;
-  GstQuery *query;
-  GstEvent *seek;
-  gboolean seekable = FALSE;
   gint64 pos = -1;
 
   g_return_val_if_fail (rate != 0, FALSE);
 
   if (!gst_element_query_position (play->playbin, GST_FORMAT_TIME, &pos))
     return FALSE;
+
+  return play_do_seek (play, pos, rate, mode);
+}
+
+static gboolean
+play_do_seek (GstPlay * play, gint64 pos, gdouble rate, GstPlayTrickMode mode)
+{
+  GstSeekFlags seek_flags;
+  GstQuery *query;
+  GstEvent *seek;
+  gboolean seekable = FALSE;
 
   query = gst_query_new_seeking (GST_FORMAT_TIME);
   if (!gst_element_query (play->playbin, query)) {
@@ -775,9 +786,12 @@ static void
 play_set_playback_rate (GstPlay * play, gdouble rate)
 {
   if (play_set_rate_and_trick_mode (play, rate, play->trick_mode)) {
-    g_print ("Rate: %.2f                               \n", rate);
+    g_print (_("Playback rate: %.2f"), rate);
+    g_print ("                               \n");
   } else {
-    g_print ("\nCould not change playback rate to %.2f.\n", rate);
+    g_print ("\n");
+    g_print (_("Could not change playback rate to %.2f"), rate);
+    g_print (".\n");
   }
 }
 
@@ -832,11 +846,55 @@ play_switch_trick_mode (GstPlay * play)
 }
 
 static void
+print_keyboard_help (void)
+{
+  static struct
+  {
+    const gchar *key_desc;
+    const gchar *key_help;
+  } key_controls[] = {
+    {
+    N_("space"), N_("pause/unpause")}, {
+    N_("q or ESC"), N_("quit")}, {
+    ">", N_("play next")}, {
+    "<", N_("play previous")}, {
+    "\342\206\222", N_("seek forward")}, {
+    "\342\206\220", N_("seek backward")}, {
+    "\342\206\221", N_("volume up")}, {
+    "\342\206\223", N_("volume down")}, {
+    "+", N_("increase playback rate")}, {
+    "-", N_("decrease playback rate")}, {
+    "d", N_("change playback direction")}, {
+    "t", N_("enable/disable trick modes")}, {
+  "k", N_("show keyboard shortcuts")},};
+  guint i, chars_to_pad, desc_len, max_desc_len = 0;
+
+  g_print ("\n\n%s\n\n", _("Interactive mode - keyboard controls:"));
+
+  for (i = 0; i < G_N_ELEMENTS (key_controls); ++i) {
+    desc_len = g_utf8_strlen (key_controls[i].key_desc, -1);
+    max_desc_len = MAX (max_desc_len, desc_len);
+  }
+  ++max_desc_len;
+
+  for (i = 0; i < G_N_ELEMENTS (key_controls); ++i) {
+    chars_to_pad = max_desc_len - g_utf8_strlen (key_controls[i].key_desc, -1);
+    g_print ("\t%s", key_controls[i].key_desc);
+    g_print ("%-*s: ", chars_to_pad, "");
+    g_print ("%s\n", key_controls[i].key_help);
+  }
+  g_print ("\n");
+}
+
+static void
 keyboard_cb (const gchar * key_input, gpointer user_data)
 {
   GstPlay *play = (GstPlay *) user_data;
 
   switch (g_ascii_tolower (key_input[0])) {
+    case 'k':
+      print_keyboard_help ();
+      break;
     case ' ':
       toggle_paused (play);
       break;
@@ -846,7 +904,7 @@ keyboard_cb (const gchar * key_input, gpointer user_data)
       break;
     case '>':
       if (!play_next (play)) {
-        g_print ("\nReached end of play list.\n");
+        g_print ("\n%s\n", _("Reached end of play list."));
         g_main_loop_quit (play->loop);
       }
       break;
@@ -1046,6 +1104,7 @@ main (int argc, char **argv)
 
   if (interactive) {
     if (gst_play_kb_set_key_handler (keyboard_cb, play)) {
+      g_print (_("Press 'k' to see a list of keyboard shortcuts.\n"));
       atexit (restore_terminal);
     } else {
       g_print ("Interactive keyboard handling in terminal not available.\n");
