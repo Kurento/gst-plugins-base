@@ -62,6 +62,8 @@ GST_DEBUG_CATEGORY (pango_debug);
 #define DEFAULT_PROP_WAIT_TEXT	TRUE
 #define DEFAULT_PROP_AUTO_ADJUST_SIZE TRUE
 #define DEFAULT_PROP_VERTICAL_RENDER  FALSE
+#define DEFAULT_PROP_DRAW_SHADOW TRUE
+#define DEFAULT_PROP_DRAW_OUTLINE TRUE
 #define DEFAULT_PROP_COLOR      0xffffffff
 #define DEFAULT_PROP_OUTLINE_COLOR 0xff000000
 #define DEFAULT_PROP_SHADING_VALUE    80
@@ -91,7 +93,8 @@ enum
   PROP_AUTO_ADJUST_SIZE,
   PROP_VERTICAL_RENDER,
   PROP_COLOR,
-  PROP_SHADOW,
+  PROP_DRAW_SHADOW,
+  PROP_DRAW_OUTLINE,
   PROP_OUTLINE_COLOR,
   PROP_LAST
 };
@@ -458,6 +461,30 @@ gst_base_text_overlay_class_init (GstBaseTextOverlayClass * klass)
           DEFAULT_PROP_SILENT,
           G_PARAM_READWRITE | GST_PARAM_CONTROLLABLE | G_PARAM_STATIC_STRINGS));
   /**
+   * GstBaseTextOverlay:draw-shadow:
+   *
+   * If set, a text shadow is drawn.
+   *
+   * Since: 1.6
+   */
+  g_object_class_install_property (G_OBJECT_CLASS (klass), PROP_DRAW_SHADOW,
+      g_param_spec_boolean ("draw-shadow", "draw-shadow",
+          "Whether to draw shadow",
+          DEFAULT_PROP_DRAW_SHADOW,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  /**
+   * GstBaseTextOverlay:draw-outline:
+   *
+   * If set, an outline is drawn.
+   *
+   * Since: 1.6
+   */
+  g_object_class_install_property (G_OBJECT_CLASS (klass), PROP_DRAW_OUTLINE,
+      g_param_spec_boolean ("draw-outline", "draw-outline",
+          "Whether to draw outline",
+          DEFAULT_PROP_DRAW_OUTLINE,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+  /**
    * GstBaseTextOverlay:wait-text:
    *
    * If set, the video will block until a subtitle is received on the text pad.
@@ -588,6 +615,8 @@ gst_base_text_overlay_init (GstBaseTextOverlay * overlay,
   overlay->want_shading = DEFAULT_PROP_SHADING;
   overlay->shading_value = DEFAULT_PROP_SHADING_VALUE;
   overlay->silent = DEFAULT_PROP_SILENT;
+  overlay->draw_shadow = DEFAULT_PROP_DRAW_SHADOW;
+  overlay->draw_outline = DEFAULT_PROP_DRAW_OUTLINE;
   overlay->wait_text = DEFAULT_PROP_WAIT_TEXT;
   overlay->auto_adjust_size = DEFAULT_PROP_AUTO_ADJUST_SIZE;
 
@@ -669,14 +698,13 @@ gst_base_text_overlay_setcaps_txt (GstBaseTextOverlay * overlay, GstCaps * caps)
 static gboolean
 gst_base_text_overlay_negotiate (GstBaseTextOverlay * overlay, GstCaps * caps)
 {
-  GstQuery *query;
+  gboolean upstream_has_meta = FALSE;
+  gboolean caps_has_meta = FALSE;
+  gboolean alloc_has_meta = FALSE;
   gboolean attach = FALSE;
-  gboolean caps_has_meta = TRUE;
-  gboolean ret;
+  gboolean ret = TRUE;
   GstCapsFeatures *f;
-  GstCaps *original_caps;
-  gboolean original_has_meta = FALSE;
-  gboolean allocation_ret = TRUE;
+  GstCaps *overlay_caps;
 
   GST_DEBUG_OBJECT (overlay, "performing negotiation");
 
@@ -688,76 +716,77 @@ gst_base_text_overlay_negotiate (GstBaseTextOverlay * overlay, GstCaps * caps)
   if (!caps || gst_caps_is_empty (caps))
     goto no_format;
 
-  original_caps = caps;
+  /* Check if upstream caps have meta */
+  if ((f = gst_caps_get_features (caps, 0))) {
+    caps_has_meta = gst_caps_features_contains (f,
+        GST_CAPS_FEATURE_META_GST_VIDEO_OVERLAY_COMPOSITION);
+  }
 
-  /* Try to use the overlay meta if possible */
-  f = gst_caps_get_features (caps, 0);
+  if (upstream_has_meta) {
+    overlay_caps = gst_caps_ref (caps);
+  } else {
+    GstQuery *query;
 
-  /* if the caps doesn't have the overlay meta, we query if downstream
-   * accepts it before trying the version without the meta
-   * If upstream already is using the meta then we can only use it */
-  if (!f
-      || !gst_caps_features_contains (f,
-          GST_CAPS_FEATURE_META_GST_VIDEO_OVERLAY_COMPOSITION)) {
-    GstCaps *overlay_caps;
+    /* First check if the allocation meta has compositon */
+    query = gst_query_new_allocation (caps, FALSE);
 
-    /* In this case we added the meta, but we can work without it
-     * so preserve the original caps so we can use it as a fallback */
+    if (!gst_pad_peer_query (overlay->srcpad, query)) {
+      /* no problem, we use the query defaults */
+      GST_DEBUG_OBJECT (overlay, "ALLOCATION query failed");
+
+      /* In case we were flushing, mark reconfigure and fail this method,
+       * will make it retry */
+      if (overlay->video_flushing)
+        ret = FALSE;
+    }
+
+    alloc_has_meta = gst_query_find_allocation_meta (query,
+        GST_VIDEO_OVERLAY_COMPOSITION_META_API_TYPE, NULL);
+
+    gst_query_unref (query);
+
+    /* Then check if downstream accept overlay composition in caps */
     overlay_caps = gst_caps_copy (caps);
 
     f = gst_caps_get_features (overlay_caps, 0);
     gst_caps_features_add (f,
         GST_CAPS_FEATURE_META_GST_VIDEO_OVERLAY_COMPOSITION);
 
-    ret = gst_pad_peer_query_accept_caps (overlay->srcpad, overlay_caps);
-    GST_DEBUG_OBJECT (overlay, "Downstream accepts the overlay meta: %d", ret);
-    if (ret) {
-      gst_caps_unref (caps);
-      caps = overlay_caps;
+    caps_has_meta = gst_pad_peer_query_accept_caps (overlay->srcpad,
+        overlay_caps);
+  }
 
+  /* For backward compatbility, we will prefer bliting if downstream
+   * allocation does not support the meta. In other case we will prefer
+   * attaching, and will fail the negotiation in the unlikely case we are
+   * force to blit, but format isn't supported. */
+
+  if (upstream_has_meta) {
+    attach = TRUE;
+  } else if (caps_has_meta) {
+    if (alloc_has_meta) {
+      attach = TRUE;
     } else {
-      /* fallback to the original */
-      gst_caps_unref (overlay_caps);
-      caps_has_meta = FALSE;
+      /* Don't attach unless we cannot handle the format */
+      attach = !gst_base_text_overlay_can_handle_caps (caps);
     }
   } else {
-    original_has_meta = TRUE;
+    ret = gst_base_text_overlay_can_handle_caps (caps);
   }
-  GST_DEBUG_OBJECT (overlay, "Using caps %" GST_PTR_FORMAT, caps);
-  ret = gst_pad_set_caps (overlay->srcpad, caps);
 
+  /* If we attach, then pick the overlay caps */
+  if (attach) {
+    gst_caps_unref (caps);
+    caps = overlay_caps;
+  } else {
+    gst_caps_unref (overlay_caps);
+  }
+
+  /* If negotiation worked, set the caps and remember to attach */
   if (ret) {
-    /* find supported meta */
-    query = gst_query_new_allocation (caps, FALSE);
-
-    if (!gst_pad_peer_query (overlay->srcpad, query)) {
-      /* no problem, we use the query defaults */
-      GST_DEBUG_OBJECT (overlay, "ALLOCATION query failed");
-      allocation_ret = FALSE;
-    }
-
-    if (caps_has_meta && gst_query_find_allocation_meta (query,
-            GST_VIDEO_OVERLAY_COMPOSITION_META_API_TYPE, NULL))
-      attach = TRUE;
-
-    gst_query_unref (query);
-  }
-
-  overlay->attach_compo_to_buffer = attach;
-
-  if (!allocation_ret && overlay->video_flushing) {
-    ret = FALSE;
-  } else if (original_caps && !original_has_meta && !attach) {
-    if (caps_has_meta) {
-      /* Some elements (fakesink) claim to accept the meta on caps but won't
-         put it in the allocation query result, this leads below
-         check to fail. Prevent this by removing the meta from caps */
-      gst_caps_unref (caps);
-      caps = gst_caps_ref (original_caps);
-      ret = gst_pad_set_caps (overlay->srcpad, caps);
-      if (ret && !gst_base_text_overlay_can_handle_caps (caps))
-        ret = FALSE;
-    }
+    GST_DEBUG_OBJECT (overlay, "Using caps %" GST_PTR_FORMAT, caps);
+    overlay->attach_compo_to_buffer = attach;
+    ret = gst_pad_set_caps (overlay->srcpad, caps);
   }
 
   if (!ret) {
@@ -909,6 +938,12 @@ gst_base_text_overlay_set_property (GObject * object, guint prop_id,
     case PROP_SILENT:
       overlay->silent = g_value_get_boolean (value);
       break;
+    case PROP_DRAW_SHADOW:
+      overlay->draw_shadow = g_value_get_boolean (value);
+      break;
+    case PROP_DRAW_OUTLINE:
+      overlay->draw_outline = g_value_get_boolean (value);
+      break;
     case PROP_LINE_ALIGNMENT:
       overlay->line_align = g_value_get_enum (value);
       g_mutex_lock (GST_BASE_TEXT_OVERLAY_GET_CLASS (overlay)->pango_lock);
@@ -985,6 +1020,12 @@ gst_base_text_overlay_get_property (GObject * object, guint prop_id,
       break;
     case PROP_SILENT:
       g_value_set_boolean (value, overlay->silent);
+      break;
+    case PROP_DRAW_SHADOW:
+      g_value_set_boolean (value, overlay->draw_shadow);
+      break;
+    case PROP_DRAW_OUTLINE:
+      g_value_set_boolean (value, overlay->draw_outline);
       break;
     case PROP_LINE_ALIGNMENT:
       g_value_set_enum (value, overlay->line_align);
@@ -1513,7 +1554,7 @@ gst_base_text_overlay_render_pangocairo (GstBaseTextOverlay * overlay,
    */
 
   /* draw shadow text */
-  {
+  if (overlay->draw_shadow) {
     PangoAttrList *origin_attr, *filtered_attr, *temp_attr;
 
     /* Store a ref on the original attributes for later restoration */
@@ -1538,18 +1579,20 @@ gst_base_text_overlay_render_pangocairo (GstBaseTextOverlay * overlay,
     cairo_restore (cr);
   }
 
-  a = (overlay->outline_color >> 24) & 0xff;
-  r = (overlay->outline_color >> 16) & 0xff;
-  g = (overlay->outline_color >> 8) & 0xff;
-  b = (overlay->outline_color >> 0) & 0xff;
-
   /* draw outline text */
-  cairo_save (cr);
-  cairo_set_source_rgba (cr, r / 255.0, g / 255.0, b / 255.0, a / 255.0);
-  cairo_set_line_width (cr, overlay->outline_offset);
-  pango_cairo_layout_path (cr, overlay->layout);
-  cairo_stroke (cr);
-  cairo_restore (cr);
+  if (overlay->draw_outline) {
+    a = (overlay->outline_color >> 24) & 0xff;
+    r = (overlay->outline_color >> 16) & 0xff;
+    g = (overlay->outline_color >> 8) & 0xff;
+    b = (overlay->outline_color >> 0) & 0xff;
+
+    cairo_save (cr);
+    cairo_set_source_rgba (cr, r / 255.0, g / 255.0, b / 255.0, a / 255.0);
+    cairo_set_line_width (cr, overlay->outline_offset);
+    pango_cairo_layout_path (cr, overlay->layout);
+    cairo_stroke (cr);
+    cairo_restore (cr);
+  }
 
   a = (overlay->color >> 24) & 0xff;
   r = (overlay->color >> 16) & 0xff;

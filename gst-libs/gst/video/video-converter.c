@@ -2012,7 +2012,7 @@ convert_get_alpha_mode (GstVideoConverter * convert)
 }
 
 /**
- * gst_video_converter_new:
+ * gst_video_converter_new: (skip)
  * @in_info: a #GstVideoInfo
  * @out_info: a #GstVideoInfo
  * @config: (transfer full): a #GstStructure with configuration options
@@ -3627,12 +3627,6 @@ convert_fill_border (GstVideoConverter * convert, GstVideoFrame * dest)
         GST_VIDEO_FORMAT_INFO_SCALE_HEIGHT (out_finfo, k,
         convert->out_maxheight);
 
-    r_border = out_x + out_width;
-    rb_width = out_maxwidth - r_border;
-    lb_width = out_x;
-
-    borders = &convert->borders[k];
-
     pstride = GST_VIDEO_FORMAT_INFO_PSTRIDE (out_finfo, k);
 
     switch (GST_VIDEO_FORMAT_INFO_FORMAT (out_finfo)) {
@@ -3640,11 +3634,18 @@ convert_fill_border (GstVideoConverter * convert, GstVideoFrame * dest)
       case GST_VIDEO_FORMAT_YVYU:
       case GST_VIDEO_FORMAT_UYVY:
         pgroup = 42;
+        out_maxwidth = GST_ROUND_UP_2 (out_maxwidth);
         break;
       default:
         pgroup = pstride;
         break;
     }
+
+    r_border = out_x + out_width;
+    rb_width = out_maxwidth - r_border;
+    lb_width = out_x;
+
+    borders = &convert->borders[k];
 
     switch (pgroup) {
       case 1:
@@ -4040,7 +4041,8 @@ setup_scale (GstVideoConverter * convert)
                 in_width), GST_VIDEO_FORMAT_INFO_SCALE_WIDTH (out_finfo,
                 GST_VIDEO_COMP_Y, out_width), convert->config);
         uv_scaler =
-            gst_video_scaler_new (method, GST_VIDEO_SCALER_FLAG_NONE, taps,
+            gst_video_scaler_new (method, GST_VIDEO_SCALER_FLAG_NONE,
+            gst_video_scaler_get_max_taps (y_scaler),
             GST_VIDEO_FORMAT_INFO_SCALE_WIDTH (in_finfo, GST_VIDEO_COMP_U,
                 in_width), GST_VIDEO_FORMAT_INFO_SCALE_WIDTH (out_finfo,
                 GST_VIDEO_COMP_U, out_width), convert->config);

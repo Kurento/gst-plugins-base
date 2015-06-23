@@ -31,6 +31,7 @@
 #include <gst/audio/audio.h>
 #include <gst/video/video.h>
 #include <gst/pbutils/pbutils.h>
+#include <gst/tag/tag.h>
 #include <gst/math-compat.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -54,6 +55,14 @@ typedef enum
   GST_PLAY_TRICK_MODE_KEY_UNITS_NO_AUDIO,
   GST_PLAY_TRICK_MODE_LAST
 } GstPlayTrickMode;
+
+typedef enum
+{
+  GST_PLAY_TRACK_TYPE_INVALID = 0,
+  GST_PLAY_TRACK_TYPE_AUDIO,
+  GST_PLAY_TRACK_TYPE_VIDEO,
+  GST_PLAY_TRACK_TYPE_SUBTITLE
+} GstPlayTrackType;
 
 typedef struct
 {
@@ -129,8 +138,12 @@ static GstPlay *
 play_new (gchar ** uris, const gchar * audio_sink, const gchar * video_sink,
     gboolean gapless, gdouble initial_volume)
 {
-  GstElement *sink;
+  GstElement *sink, *playbin;
   GstPlay *play;
+
+  playbin = gst_element_factory_make ("playbin", "playbin");
+  if (playbin == NULL)
+    return NULL;
 
   play = g_new0 (GstPlay, 1);
 
@@ -138,7 +151,7 @@ play_new (gchar ** uris, const gchar * audio_sink, const gchar * video_sink,
   play->num_uris = g_strv_length (uris);
   play->cur_idx = -1;
 
-  play->playbin = gst_element_factory_make ("playbin", "playbin");
+  play->playbin = playbin;
 
   if (audio_sink != NULL) {
     if (strchr (audio_sink, ' ') != NULL)
@@ -449,7 +462,8 @@ play_timeout (gpointer user_data)
 {
   GstPlay *play = user_data;
   gint64 pos = -1, dur = -1;
-  gchar status[64] = { 0, };
+  const gchar *paused = _("Paused");
+  gchar *status;
 
   if (play->buffering)
     return TRUE;
@@ -457,10 +471,14 @@ play_timeout (gpointer user_data)
   gst_element_query_position (play->playbin, GST_FORMAT_TIME, &pos);
   gst_element_query_duration (play->playbin, GST_FORMAT_TIME, &dur);
 
-  if (play->desired_state == GST_STATE_PAUSED)
-    g_snprintf (status, sizeof (status), "Paused");
-  else
-    memset (status, ' ', sizeof (status) - 1);
+  if (play->desired_state == GST_STATE_PAUSED) {
+    status = (gchar *) paused;
+  } else {
+    gint len = g_utf8_strlen (paused, -1);
+    status = g_newa (gchar, len + 1);
+    memset (status, ' ', len);
+    status[len] = '\0';
+  }
 
   if (pos >= 0 && dur > 0) {
     gchar dstr[32], pstr[32];
@@ -588,6 +606,21 @@ do_play (GstPlay * play)
   g_main_loop_run (play->loop);
 }
 
+static gint
+compare (gconstpointer a, gconstpointer b)
+{
+  gchar *a1, *b1;
+  gint ret;
+
+  a1 = g_utf8_collate_key_for_filename ((gchar *) a, -1);
+  b1 = g_utf8_collate_key_for_filename ((gchar *) b, -1);
+  ret = strcmp (a1, b1);
+  g_free (a1);
+  g_free (b1);
+
+  return ret;
+}
+
 static void
 add_to_playlist (GPtrArray * playlist, const gchar * filename)
 {
@@ -601,17 +634,24 @@ add_to_playlist (GPtrArray * playlist, const gchar * filename)
 
   if ((dir = g_dir_open (filename, 0, NULL))) {
     const gchar *entry;
+    GList *l, *files = NULL;
 
-    /* FIXME: sort entries for each directory? */
     while ((entry = g_dir_read_name (dir))) {
       gchar *path;
 
       path = g_strconcat (filename, G_DIR_SEPARATOR_S, entry, NULL);
-      add_to_playlist (playlist, path);
-      g_free (path);
+      files = g_list_insert_sorted (files, path, compare);
     }
 
     g_dir_close (dir);
+
+    for (l = files; l != NULL; l = l->next) {
+      gchar *path = (gchar *) l->data;
+
+      add_to_playlist (playlist, path);
+      g_free (path);
+    }
+    g_list_free (files);
     return;
   }
 
@@ -761,11 +801,11 @@ play_do_seek (GstPlay * play, gint64 pos, gdouble rate, GstPlayTrickMode mode)
       break;
   }
 
-  if (rate > 0)
+  if (rate >= 0)
     seek = gst_event_new_seek (rate, GST_FORMAT_TIME,
-        seek_flags | GST_SEEK_FLAG_KEY_UNIT,
+        seek_flags | GST_SEEK_FLAG_ACCURATE,
         /* start */ GST_SEEK_TYPE_SET, pos,
-        /* stop */ GST_SEEK_TYPE_NONE, 0);
+        /* stop */ GST_SEEK_TYPE_SET, GST_CLOCK_TIME_NONE);
   else
     seek = gst_event_new_seek (rate, GST_FORMAT_TIME,
         seek_flags | GST_SEEK_FLAG_ACCURATE,
@@ -844,6 +884,66 @@ play_switch_trick_mode (GstPlay * play)
 }
 
 static void
+play_cycle_track_selection (GstPlay * play, GstPlayTrackType track_type)
+{
+  const gchar *prop_cur, *prop_n, *prop_get, *name;
+  gint cur = -1, n = -1;
+
+  switch (track_type) {
+    case GST_PLAY_TRACK_TYPE_AUDIO:
+      prop_get = "get-audio-tags";
+      prop_cur = "current-audio";
+      prop_n = "n-audio";
+      name = "audio";
+      break;
+    case GST_PLAY_TRACK_TYPE_VIDEO:
+      prop_get = "get-video-tags";
+      prop_cur = "current-video";
+      prop_n = "n-video";
+      name = "video";
+      break;
+    case GST_PLAY_TRACK_TYPE_SUBTITLE:
+      prop_get = "get-text-tags";
+      prop_cur = "current-text";
+      prop_n = "n-text";
+      name = "subtitle";
+      break;
+    default:
+      return;
+  }
+
+  g_object_get (play->playbin, prop_cur, &cur, prop_n, &n, NULL);
+
+  if (n < 1) {
+    g_print ("No %s tracks.\n", name);
+  } else if (n == 1) {
+    g_print ("No other %s tracks to switch to.\n", name);
+  } else {
+    gchar *lcode = NULL, *lname = NULL;
+    const gchar *lang = NULL;
+    GstTagList *tags = NULL;
+
+    cur = (cur + 1) % n;
+    g_signal_emit_by_name (play->playbin, prop_get, cur, &tags);
+    if (tags != NULL) {
+      if (gst_tag_list_get_string (tags, GST_TAG_LANGUAGE_CODE, &lcode))
+        lang = gst_tag_get_language_name (lcode);
+      else if (gst_tag_list_get_string (tags, GST_TAG_LANGUAGE_NAME, &lname))
+        lang = lname;
+      gst_tag_list_unref (tags);
+    }
+    if (lang != NULL)
+      g_print ("Switching to %s track %d of %d (%s).\n", name, cur + 1, n,
+          lang);
+    else
+      g_print ("Switching to %s track %d of %d.\n", name, cur + 1, n);
+    g_object_set (play->playbin, prop_cur, cur, NULL);
+    g_free (lcode);
+    g_free (lname);
+  }
+}
+
+static void
 print_keyboard_help (void)
 {
   static struct
@@ -864,6 +964,9 @@ print_keyboard_help (void)
     "-", N_("decrease playback rate")}, {
     "d", N_("change playback direction")}, {
     "t", N_("enable/disable trick modes")}, {
+    "a", N_("change audio track")}, {
+    "v", N_("change video track")}, {
+    "s", N_("change subtitle track")}, {
   "k", N_("show keyboard shortcuts")},};
   guint i, chars_to_pad, desc_len, max_desc_len = 0;
 
@@ -888,8 +991,13 @@ static void
 keyboard_cb (const gchar * key_input, gpointer user_data)
 {
   GstPlay *play = (GstPlay *) user_data;
+  gchar key = '\0';
 
-  switch (g_ascii_tolower (key_input[0])) {
+  /* only want to switch/case on single char, not first char of string */
+  if (key_input[0] != '\0' && key_input[1] == '\0')
+    key = g_ascii_tolower (key_input[0]);
+
+  switch (key) {
     case 'k':
       print_keyboard_help ();
       break;
@@ -940,6 +1048,15 @@ keyboard_cb (const gchar * key_input, gpointer user_data)
         g_main_loop_quit (play->loop);
         break;
       }
+    case 'a':
+      play_cycle_track_selection (play, GST_PLAY_TRACK_TYPE_AUDIO);
+      break;
+    case 'v':
+      play_cycle_track_selection (play, GST_PLAY_TRACK_TYPE_VIDEO);
+      break;
+    case 's':
+      play_cycle_track_selection (play, GST_PLAY_TRACK_TYPE_SUBTITLE);
+      break;
       /* fall through */
     default:
       if (strcmp (key_input, GST_PLAY_KB_ARROW_RIGHT) == 0) {
@@ -1099,6 +1216,12 @@ main (int argc, char **argv)
 
   /* prepare */
   play = play_new (uris, audio_sink, video_sink, gapless, volume);
+
+  if (play == NULL) {
+    g_printerr
+        ("Failed to create 'playbin' element. Check your GStreamer installation.\n");
+    return EXIT_FAILURE;
+  }
 
   if (interactive) {
     if (gst_play_kb_set_key_handler (keyboard_cb, play)) {

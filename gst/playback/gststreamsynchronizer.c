@@ -71,6 +71,8 @@ typedef struct
   gboolean seen_data;
   GstClockTime gap_duration;
 
+  GstStreamFlags flags;
+
   GCond stream_finish_cond;
 
   /* seqnum of the previously received STREAM_START
@@ -298,6 +300,8 @@ gst_stream_synchronizer_sink_event (GstPad * pad, GstObject * parent,
         break;
       }
 
+      gst_event_parse_stream_flags (event, &stream->flags);
+
       if ((have_group_id && stream->group_id != group_id) || (!have_group_id
               && stream->stream_start_seqnum != seqnum)) {
         stream->is_eos = FALSE;
@@ -342,8 +346,9 @@ gst_stream_synchronizer_sink_event (GstPad * pad, GstObject * parent,
         for (l = self->streams; l; l = l->next) {
           GstStream *ostream = l->data;
 
-          all_wait = all_wait && ostream->wait && (!have_group_id
-              || ostream->group_id == group_id);
+          all_wait = all_wait && ((ostream->flags & GST_STREAM_FLAG_SPARSE)
+              || (ostream->wait && (!have_group_id
+                      || ostream->group_id == group_id)));
           if (!all_wait)
             break;
         }
@@ -467,6 +472,8 @@ gst_stream_synchronizer_sink_event (GstPad * pad, GstObject * parent,
     }
     case GST_EVENT_FLUSH_STOP:{
       GstStream *stream;
+      GList *l;
+      GstClockTime new_group_start_time = 0;
 
       GST_STREAM_SYNCHRONIZER_LOCK (self);
       stream = gst_pad_get_element_private (pad);
@@ -481,7 +488,48 @@ gst_stream_synchronizer_sink_event (GstPad * pad, GstObject * parent,
         stream->wait = FALSE;
         g_cond_broadcast (&stream->stream_finish_cond);
       }
+
+      for (l = self->streams; l; l = l->next) {
+        GstStream *ostream = l->data;
+        GstClockTime start_running_time;
+
+        if (ostream == stream)
+          continue;
+
+        if (ostream->segment.format == GST_FORMAT_TIME) {
+          start_running_time =
+              gst_segment_to_running_time (&ostream->segment,
+              GST_FORMAT_TIME, ostream->segment.start);
+
+          new_group_start_time = MAX (new_group_start_time, start_running_time);
+        }
+      }
+
+      GST_DEBUG_OBJECT (pad,
+          "Updating group start time from %" GST_TIME_FORMAT " to %"
+          GST_TIME_FORMAT, GST_TIME_ARGS (self->group_start_time),
+          GST_TIME_ARGS (new_group_start_time));
+      self->group_start_time = new_group_start_time;
       GST_STREAM_SYNCHRONIZER_UNLOCK (self);
+      break;
+    }
+      /* unblocking EOS wait when track switch. */
+    case GST_EVENT_CUSTOM_DOWNSTREAM_OOB:{
+      if (gst_event_has_name (event, "playsink-custom-video-flush")
+          || gst_event_has_name (event, "playsink-custom-audio-flush")
+          || gst_event_has_name (event, "playsink-custom-subtitle-flush")) {
+        GstStream *stream;
+
+        GST_STREAM_SYNCHRONIZER_LOCK (self);
+        stream = gst_pad_get_element_private (pad);
+        if (stream) {
+          stream->is_eos = FALSE;
+          stream->eos_sent = FALSE;
+          stream->wait = FALSE;
+          g_cond_broadcast (&stream->stream_finish_cond);
+        }
+        GST_STREAM_SYNCHRONIZER_UNLOCK (self);
+      }
       break;
     }
     case GST_EVENT_EOS:{

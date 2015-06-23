@@ -230,6 +230,8 @@
 #include <gst/gst-i18n-plugin.h>
 #include <gst/pbutils/pbutils.h>
 #include <gst/audio/streamvolume.h>
+#include <gst/video/video-info.h>
+#include <gst/video/video-multiview.h>
 #include <gst/video/videooverlay.h>
 #include <gst/video/navigation.h>
 #include <gst/video/colorbalance.h>
@@ -237,6 +239,7 @@
 #include "gstplayback.h"
 #include "gstplaysink.h"
 #include "gstsubtitleoverlay.h"
+#include "gstplaybackutils.h"
 
 GST_DEBUG_CATEGORY_STATIC (gst_play_bin_debug);
 #define GST_CAT_DEFAULT gst_play_bin_debug
@@ -424,6 +427,10 @@ struct _GstPlayBin
   guint buffer_size;            /* When buffering, the max buffer size (bytes) */
   gboolean force_aspect_ratio;
 
+  /* Multiview/stereoscopic overrides */
+  GstVideoMultiviewFramePacking multiview_mode;
+  GstVideoMultiviewFlags multiview_flags;
+
   /* our play sink */
   GstPlaySink *playsink;
 
@@ -570,7 +577,9 @@ enum
   PROP_RING_BUFFER_MAX_SIZE,
   PROP_FORCE_ASPECT_RATIO,
   PROP_AUDIO_FILTER,
-  PROP_VIDEO_FILTER
+  PROP_VIDEO_FILTER,
+  PROP_MULTIVIEW_MODE,
+  PROP_MULTIVIEW_FLAGS
 };
 
 /* signals */
@@ -983,6 +992,41 @@ gst_play_bin_class_init (GstPlayBinClass * klass)
   g_object_class_install_property (gobject_klass, PROP_FORCE_ASPECT_RATIO,
       g_param_spec_boolean ("force-aspect-ratio", "Force Aspect Ratio",
           "When enabled, scaling will respect original aspect ratio", TRUE,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  /**
+   * GstPlayBin::video-multiview-mode:
+   *
+   * Set the stereoscopic mode for video streams that don't contain
+   * any information in the stream, so they can be correctly played
+   * as 3D streams. If a video already has multiview information
+   * encoded, this property can override other modes in the set,
+   * but cannot be used to re-interpret MVC or mixed-mono streams.
+   *
+   * See Also: The #GstPlayBin::video-multiview-flags property
+   *
+   */
+  g_object_class_install_property (gobject_klass, PROP_MULTIVIEW_MODE,
+      g_param_spec_enum ("video-multiview-mode",
+          "Multiview Mode Override",
+          "Re-interpret a video stream as one of several frame-packed stereoscopic modes.",
+          GST_TYPE_VIDEO_MULTIVIEW_FRAME_PACKING,
+          GST_VIDEO_MULTIVIEW_FRAME_PACKING_NONE,
+          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+  /**
+   * GstPlayBin::video-multiview-flags:
+   *
+   * When overriding the multiview mode of an input stream,
+   * these flags modify details of the view layout.
+   *
+   * See Also: The #GstPlayBin::video-multiview-mode property
+   */
+  g_object_class_install_property (gobject_klass, PROP_MULTIVIEW_FLAGS,
+      g_param_spec_flags ("video-multiview-flags",
+          "Multiview Flags Override",
+          "Override details of the multiview frame layout",
+          GST_TYPE_VIDEO_MULTIVIEW_FLAGS, GST_VIDEO_MULTIVIEW_FLAGS_NONE,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   /**
@@ -1510,6 +1554,9 @@ gst_play_bin_init (GstPlayBin * playbin)
   playbin->ring_buffer_max_size = DEFAULT_RING_BUFFER_MAX_SIZE;
 
   playbin->force_aspect_ratio = TRUE;
+
+  playbin->multiview_mode = GST_VIDEO_MULTIVIEW_FRAME_PACKING_NONE;
+  playbin->multiview_flags = GST_VIDEO_MULTIVIEW_FLAGS_NONE;
 }
 
 static void
@@ -2425,6 +2472,16 @@ gst_play_bin_set_property (GObject * object, guint prop_id,
       g_object_set (playbin->playsink, "force-aspect-ratio",
           g_value_get_boolean (value), NULL);
       break;
+    case PROP_MULTIVIEW_MODE:
+      GST_PLAY_BIN_LOCK (playbin);
+      playbin->multiview_mode = g_value_get_enum (value);
+      GST_PLAY_BIN_UNLOCK (playbin);
+      break;
+    case PROP_MULTIVIEW_FLAGS:
+      GST_PLAY_BIN_LOCK (playbin);
+      playbin->multiview_flags = g_value_get_flags (value);
+      GST_PLAY_BIN_UNLOCK (playbin);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -2669,6 +2726,16 @@ gst_play_bin_get_property (GObject * object, guint prop_id, GValue * value,
       g_value_set_boolean (value, v);
       break;
     }
+    case PROP_MULTIVIEW_MODE:
+      GST_OBJECT_LOCK (playbin);
+      g_value_set_enum (value, playbin->multiview_mode);
+      GST_OBJECT_UNLOCK (playbin);
+      break;
+    case PROP_MULTIVIEW_FLAGS:
+      GST_OBJECT_LOCK (playbin);
+      g_value_set_flags (value, playbin->multiview_flags);
+      GST_OBJECT_UNLOCK (playbin);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -2920,6 +2987,11 @@ gst_play_bin_handle_message (GstBin * bin, GstMessage * msg)
         gst_bin_remove (bin, group->suburidecodebin);
         gst_element_set_locked_state (group->suburidecodebin, FALSE);
 
+        GST_SOURCE_GROUP_LOCK (group);
+        g_free (group->suburi);
+        group->suburi = NULL;
+        GST_SOURCE_GROUP_UNLOCK (group);
+
         if (group->sub_pending) {
           group->sub_pending = FALSE;
           no_more_pads_cb (NULL, group);
@@ -3008,6 +3080,52 @@ notify:
     g_object_notify (G_OBJECT (playbin), property);
 }
 
+static GstCaps *
+update_video_multiview_caps (GstPlayBin * playbin, GstCaps * caps)
+{
+  GstVideoMultiviewMode mv_mode;
+  GstVideoMultiviewMode cur_mv_mode;
+  GstVideoMultiviewFlags mv_flags, cur_mv_flags;
+  GstStructure *s;
+  const gchar *mview_mode_str;
+  GstCaps *out_caps;
+
+  GST_OBJECT_LOCK (playbin);
+  mv_mode = (GstVideoMultiviewMode) playbin->multiview_mode;
+  mv_flags = playbin->multiview_flags;
+  GST_OBJECT_UNLOCK (playbin);
+
+  if (mv_mode == GST_VIDEO_MULTIVIEW_MODE_NONE)
+    return NULL;
+
+  cur_mv_mode = GST_VIDEO_MULTIVIEW_MODE_NONE;
+  cur_mv_flags = GST_VIDEO_MULTIVIEW_FLAGS_NONE;
+
+  s = gst_caps_get_structure (caps, 0);
+
+  gst_structure_get_flagset (s, "multiview-flags", &cur_mv_flags, NULL);
+  if ((mview_mode_str = gst_structure_get_string (s, "multiview-mode")))
+    cur_mv_mode = gst_video_multiview_mode_from_caps_string (mview_mode_str);
+
+  /* We can't override an existing annotated multiview mode, except
+   * maybe (in the future) we could change some flags. */
+  if ((gint) cur_mv_mode > GST_VIDEO_MULTIVIEW_MAX_FRAME_PACKING) {
+    GST_INFO_OBJECT (playbin, "Cannot override existing multiview mode");
+    return NULL;
+  }
+
+  mview_mode_str = gst_video_multiview_mode_to_caps_string (mv_mode);
+  g_assert (mview_mode_str != NULL);
+  out_caps = gst_caps_copy (caps);
+  s = gst_caps_get_structure (out_caps, 0);
+
+  gst_structure_set (s, "multiview-mode", G_TYPE_STRING, mview_mode_str,
+      "multiview-flags", GST_TYPE_VIDEO_MULTIVIEW_FLAGSET, mv_flags,
+      GST_FLAG_SET_MASK_EXACT, NULL);
+
+  return out_caps;
+}
+
 static GstPadProbeReturn
 _uridecodebin_event_probe (GstPad * pad, GstPadProbeInfo * info, gpointer udata)
 {
@@ -3069,6 +3187,26 @@ _uridecodebin_event_probe (GstPad * pad, GstPadProbeInfo * info, gpointer udata)
         gst_event_unref (event);
       }
       GST_SOURCE_GROUP_UNLOCK (group);
+      break;
+    }
+    case GST_EVENT_CAPS:{
+      GstCaps *caps = NULL;
+      const GstStructure *s;
+      const gchar *name;
+
+      gst_event_parse_caps (event, &caps);
+      /* If video caps, check if we should override multiview flags */
+      s = gst_caps_get_structure (caps, 0);
+      name = gst_structure_get_name (s);
+      if (g_str_has_prefix (name, "video/")) {
+        caps = update_video_multiview_caps (group->playbin, caps);
+        if (caps) {
+          gst_event_unref (event);
+          event = gst_event_new_caps (caps);
+          GST_PAD_PROBE_INFO_DATA (info) = event;
+          gst_caps_unref (caps);
+        }
+      }
       break;
     }
     default:
@@ -3811,103 +3949,6 @@ avelement_compare (gconstpointer p1, gconstpointer p2)
   return strcmp (GST_OBJECT_NAME (fd1), GST_OBJECT_NAME (fd2));
 }
 
-/* unref the caps after usage */
-static GstCaps *
-get_template_caps (GstElementFactory * factory, GstPadDirection direction)
-{
-  const GList *templates;
-  GstStaticPadTemplate *templ = NULL;
-  GList *walk;
-
-  templates = gst_element_factory_get_static_pad_templates (factory);
-  for (walk = (GList *) templates; walk; walk = g_list_next (walk)) {
-    templ = walk->data;
-    if (templ->direction == direction)
-      break;
-  }
-  if (templ)
-    return gst_static_caps_get (&templ->static_caps);
-  else
-    return NULL;
-}
-
-static gboolean
-is_included (GList * list, GstCapsFeatures * cf)
-{
-  for (; list; list = list->next) {
-    if (gst_caps_features_is_equal ((GstCapsFeatures *) list->data, cf))
-      return TRUE;
-  }
-  return FALSE;
-}
-
-/* compute the number of common caps features */
-static guint
-get_n_common_capsfeatures (GstPlayBin * playbin, GstElementFactory * dec,
-    GstElementFactory * sink, gboolean isaudioelement)
-{
-  GstCaps *d_tmpl_caps, *s_tmpl_caps;
-  GstCapsFeatures *d_features, *s_features;
-  GstStructure *d_struct, *s_struct;
-  GList *cf_list = NULL;
-  guint d_caps_size, s_caps_size;
-  guint i, j, n_common_cf = 0;
-  GstCaps *raw_caps =
-      (isaudioelement) ? gst_static_caps_get (&raw_audio_caps) :
-      gst_static_caps_get (&raw_video_caps);
-  GstStructure *raw_struct = gst_caps_get_structure (raw_caps, 0);
-  GstPlayFlags flags = gst_play_bin_get_flags (playbin);
-  gboolean native_raw =
-      (isaudioelement ? ! !(flags & GST_PLAY_FLAG_NATIVE_AUDIO) : ! !(flags &
-          GST_PLAY_FLAG_NATIVE_VIDEO));
-
-  d_tmpl_caps = get_template_caps (dec, GST_PAD_SRC);
-  s_tmpl_caps = get_template_caps (sink, GST_PAD_SINK);
-
-  if (!d_tmpl_caps || !s_tmpl_caps) {
-    GST_ERROR ("Failed to get template caps from decoder or sink");
-    return 0;
-  }
-
-  d_caps_size = gst_caps_get_size (d_tmpl_caps);
-  s_caps_size = gst_caps_get_size (s_tmpl_caps);
-
-  for (i = 0; i < d_caps_size; i++) {
-    d_features = gst_caps_get_features ((const GstCaps *) d_tmpl_caps, i);
-    d_struct = gst_caps_get_structure ((const GstCaps *) d_tmpl_caps, i);
-    for (j = 0; j < s_caps_size; j++) {
-
-      s_features = gst_caps_get_features ((const GstCaps *) s_tmpl_caps, j);
-      s_struct = gst_caps_get_structure ((const GstCaps *) s_tmpl_caps, j);
-
-      /* A common caps feature is given if the caps features are equal
-       * and the structures can intersect. If the NATIVE_AUDIO/NATIVE_VIDEO
-       * flags are not set we also allow if both structures are raw caps with
-       * system memory caps features, because in that case we have converters in
-       * place.
-       */
-      if (gst_caps_features_is_equal (d_features, s_features) &&
-          (gst_structure_can_intersect (d_struct, s_struct) ||
-              (!native_raw
-                  && gst_caps_features_is_equal (d_features,
-                      GST_CAPS_FEATURES_MEMORY_SYSTEM_MEMORY)
-                  && gst_structure_can_intersect (raw_struct, d_struct)
-                  && gst_structure_can_intersect (raw_struct, s_struct)))
-          && !is_included (cf_list, s_features)) {
-        cf_list = g_list_prepend (cf_list, s_features);
-        n_common_cf++;
-      }
-    }
-  }
-  if (cf_list)
-    g_list_free (cf_list);
-
-  gst_caps_unref (d_tmpl_caps);
-  gst_caps_unref (s_tmpl_caps);
-
-  return n_common_cf;
-}
-
 static GSequence *
 avelements_create (GstPlayBin * playbin, gboolean isaudioelement)
 {
@@ -3951,8 +3992,8 @@ avelements_create (GstPlayBin * playbin, gboolean isaudioelement)
       s_factory = (GstElementFactory *) sl->data;
 
       n_common_cf =
-          get_n_common_capsfeatures (playbin, d_factory, s_factory,
-          isaudioelement);
+          gst_playback_utils_get_n_common_capsfeatures (d_factory, s_factory,
+          gst_play_bin_get_flags (playbin), isaudioelement);
       if (n_common_cf < 1)
         continue;
 
@@ -4387,13 +4428,13 @@ autoplug_continue_cb (GstElement * element, GstPad * pad, GstCaps * caps,
         ret = !gst_pad_query_accept_caps (sinkpad, caps);
       gst_caps_unref (sinkcaps);
       gst_object_unref (sinkpad);
-    } else {
-      GstCaps *subcaps = gst_subtitle_overlay_create_factory_caps ();
-      ret = !gst_caps_is_subset (caps, subcaps);
-      gst_caps_unref (subcaps);
     }
     if (activated_sink)
       gst_element_set_state (group->text_sink, GST_STATE_NULL);
+  } else {
+    GstCaps *subcaps = gst_subtitle_overlay_create_factory_caps ();
+    ret = !gst_caps_is_subset (caps, subcaps);
+    gst_caps_unref (subcaps);
   }
   /* If autoplugging can stop don't do additional checks */
   if (!ret)
@@ -5277,6 +5318,8 @@ activate_group (GstPlayBin * playbin, GstSourceGroup * group, GstState target)
         group->sub_pending = FALSE;
       }
       gst_element_set_state (suburidecodebin, GST_STATE_READY);
+      g_free (group->suburi);
+      group->suburi = NULL;
       GST_SOURCE_GROUP_UNLOCK (group);
     }
   }

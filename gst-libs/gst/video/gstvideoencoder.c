@@ -164,6 +164,11 @@ struct _GstVideoEncoderPrivate
 
   GstTagList *tags;
   gboolean tags_changed;
+
+  GstClockTime min_pts;
+  /* adjustment needed on pts, dts, segment start and stop to accomodate
+   * min_pts */
+  GstClockTime time_adjustment;
 };
 
 typedef struct _ForcedKeyUnitEvent ForcedKeyUnitEvent;
@@ -343,6 +348,8 @@ gst_video_encoder_reset (GstVideoEncoder * encoder, gboolean hard)
   priv->bytes = 0;
   priv->time = 0;
 
+  priv->time_adjustment = GST_CLOCK_TIME_NONE;
+
   if (hard) {
     gst_segment_init (&encoder->input_segment, GST_FORMAT_TIME);
     gst_segment_init (&encoder->output_segment, GST_FORMAT_TIME);
@@ -455,6 +462,8 @@ gst_video_encoder_init (GstVideoEncoder * encoder, GstVideoEncoderClass * klass)
 
   priv->min_latency = 0;
   priv->max_latency = 0;
+  priv->min_pts = GST_CLOCK_TIME_NONE;
+  priv->time_adjustment = GST_CLOCK_TIME_NONE;
 
   gst_video_encoder_reset (encoder, TRUE);
 }
@@ -565,6 +574,9 @@ _new_output_state (GstCaps * caps, GstVideoCodecState * reference)
     tgt->par_d = ref->par_d;
     tgt->fps_n = ref->fps_n;
     tgt->fps_d = ref->fps_d;
+
+    GST_VIDEO_INFO_MULTIVIEW_MODE (tgt) = GST_VIDEO_INFO_MULTIVIEW_MODE (ref);
+    GST_VIDEO_INFO_MULTIVIEW_FLAGS (tgt) = GST_VIDEO_INFO_MULTIVIEW_FLAGS (ref);
   }
 
   return state;
@@ -882,8 +894,19 @@ gst_video_encoder_push_event (GstVideoEncoder * encoder, GstEvent * event)
         break;
       }
 
+      if (encoder->priv->time_adjustment != GST_CLOCK_TIME_NONE) {
+        segment.start += encoder->priv->time_adjustment;
+        if (GST_CLOCK_TIME_IS_VALID (segment.stop)) {
+          segment.stop += encoder->priv->time_adjustment;
+        }
+      }
+
       encoder->output_segment = segment;
       GST_VIDEO_ENCODER_STREAM_UNLOCK (encoder);
+
+      gst_event_unref (event);
+      event = gst_event_new_segment (&encoder->output_segment);
+
       break;
     }
     default:
@@ -1320,6 +1343,17 @@ gst_video_encoder_chain (GstPad * pad, GstObject * parent, GstBuffer * buf)
   else
     duration = GST_CLOCK_TIME_NONE;
 
+  if (priv->min_pts != GST_CLOCK_TIME_NONE
+      && priv->time_adjustment == GST_CLOCK_TIME_NONE) {
+    if (cstart < priv->min_pts) {
+      priv->time_adjustment = priv->min_pts - cstart;
+    }
+  }
+
+  if (priv->time_adjustment != GST_CLOCK_TIME_NONE) {
+    cstart += priv->time_adjustment;
+  }
+
   /* incoming DTS is not really relevant and does not make sense anyway,
    * so pass along _NONE and maybe come up with something better later on */
   frame = gst_video_encoder_new_frame (encoder, buf, cstart,
@@ -1517,6 +1551,16 @@ gst_video_encoder_negotiate_default (GstVideoEncoder * encoder)
     if (state->codec_data)
       gst_caps_set_simple (state->caps, "codec_data", GST_TYPE_BUFFER,
           state->codec_data, NULL);
+
+    if (GST_VIDEO_INFO_MULTIVIEW_MODE (info) != GST_VIDEO_MULTIVIEW_MODE_NONE) {
+      const gchar *caps_mview_mode =
+          gst_video_multiview_mode_to_caps_string (GST_VIDEO_INFO_MULTIVIEW_MODE
+          (info));
+
+      gst_caps_set_simple (state->caps, "multiview-mode", G_TYPE_STRING,
+          caps_mview_mode, "multiview-flags", GST_TYPE_VIDEO_MULTIVIEW_FLAGSET,
+          GST_VIDEO_INFO_MULTIVIEW_FLAGS (info), GST_FLAG_SET_MASK_EXACT, NULL);
+    }
     encoder->priv->output_state_changed = FALSE;
   }
 
@@ -2283,4 +2327,24 @@ gst_video_encoder_get_allocator (GstVideoEncoder * encoder,
 
   if (params)
     *params = encoder->priv->params;
+}
+
+/**
+ * gst_video_encoder_set_min_pts:
+ * @encoder: a #GstVideoEncoder
+ * @min_pts: minimal PTS that will be passed to handle_frame
+ *
+ * Request minimal value for PTS passed to handle_frame.
+ *
+ * For streams with reordered frames this can be used to ensure that there
+ * is enough time to accomodate first DTS, which may be less than first PTS
+ *
+ * Since 1.6
+ */
+void
+gst_video_encoder_set_min_pts (GstVideoEncoder * encoder, GstClockTime min_pts)
+{
+  g_return_if_fail (GST_IS_VIDEO_ENCODER (encoder));
+  encoder->priv->min_pts = min_pts;
+  encoder->priv->time_adjustment = GST_CLOCK_TIME_NONE;
 }

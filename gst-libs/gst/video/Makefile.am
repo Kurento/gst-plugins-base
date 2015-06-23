@@ -45,7 +45,8 @@ libgstvideo_@GST_API_VERSION@_la_SOURCES = \
 	gstvideoutilsprivate.c	\
 	video-resampler.c	\
 	video-blend.c		\
-	video-overlay-composition.c
+	video-overlay-composition.c \
+	video-multiview.c
 
 nodist_libgstvideo_@GST_API_VERSION@_la_SOURCES = $(BUILT_SOURCES)
 
@@ -76,7 +77,8 @@ libgstvideo_@GST_API_VERSION@include_HEADERS = \
 	gstvideoutils.h		\
 	video-resampler.h	\
 	video-blend.h		\
-	video-overlay-composition.h
+	video-overlay-composition.h \
+	video-multiview.h
 
 nodist_libgstvideo_@GST_API_VERSION@include_HEADERS = $(built_headers)
 noinst_HEADERS = gstvideoutilsprivate.h
@@ -115,7 +117,7 @@ GstVideo-@GST_API_VERSION@.gir: $(INTROSPECTION_SCANNER) libgstvideo-@GST_API_VE
 		--pkg gstreamer-@GST_API_VERSION@ \
 		--pkg gstreamer-base-@GST_API_VERSION@ \
 		--pkg-export gstreamer-video-@GST_API_VERSION@ \
-		--add-init-section="gst_init(NULL,NULL);" \
+		--add-init-section="$(INTROSPECTION_INIT)" \
 		--output $@ \
 		$(gir_headers) \
 		$(gir_sources)

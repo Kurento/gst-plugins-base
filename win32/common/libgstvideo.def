@@ -148,6 +148,7 @@ EXPORTS
 	gst_video_encoder_proxy_getcaps
 	gst_video_encoder_set_headers
 	gst_video_encoder_set_latency
+	gst_video_encoder_set_min_pts
 	gst_video_encoder_set_output_state
 	gst_video_event_is_force_key_unit
 	gst_video_event_new_downstream_force_key_unit
@@ -193,6 +194,19 @@ EXPORTS
 	gst_video_meta_map
 	gst_video_meta_transform_scale_get_quark
 	gst_video_meta_unmap
+	gst_video_multiview_flags_get_type
+	gst_video_multiview_flagset_get_type
+	gst_video_multiview_frame_packing_get_type
+	gst_video_multiview_get_doubled_height_modes
+	gst_video_multiview_get_doubled_size_modes
+	gst_video_multiview_get_doubled_width_modes
+	gst_video_multiview_get_mono_modes
+	gst_video_multiview_get_unpacked_modes
+	gst_video_multiview_guess_half_aspect
+	gst_video_multiview_mode_from_caps_string
+	gst_video_multiview_mode_get_type
+	gst_video_multiview_mode_to_caps_string
+	gst_video_multiview_video_info_change_mode
 	gst_video_orientation_get_hcenter
 	gst_video_orientation_get_hflip
 	gst_video_orientation_get_type
@@ -247,6 +261,7 @@ EXPORTS
 	gst_video_scaler_combine_packed_YUV
 	gst_video_scaler_free
 	gst_video_scaler_get_coeff
+	gst_video_scaler_get_max_taps
 	gst_video_scaler_horizontal
 	gst_video_scaler_new
 	gst_video_scaler_vertical
