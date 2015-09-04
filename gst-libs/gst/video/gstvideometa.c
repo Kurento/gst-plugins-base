@@ -21,6 +21,27 @@
 
 #include <string.h>
 
+#ifndef GST_DISABLE_GST_DEBUG
+#define GST_CAT_DEFAULT ensure_debug_category()
+static GstDebugCategory *
+ensure_debug_category (void)
+{
+  static gsize cat_gonce = 0;
+
+  if (g_once_init_enter (&cat_gonce)) {
+    gsize cat_done;
+
+    cat_done = (gsize) _gst_debug_category_new ("videometa", 0, "videometa");
+
+    g_once_init_leave (&cat_gonce, cat_done);
+  }
+
+  return (GstDebugCategory *) cat_gonce;
+}
+#else
+#define ensure_debug_category() /* NOOP */
+#endif /* GST_DISABLE_GST_DEBUG */
+
 static gboolean
 gst_video_meta_transform (GstBuffer * dest, GstMeta * meta,
     GstBuffer * buffer, GQuark type, gpointer data)
@@ -59,6 +80,9 @@ gst_video_meta_transform (GstBuffer * dest, GstMeta * meta,
       dmeta->map = smeta->map;
       dmeta->unmap = smeta->unmap;
     }
+  } else {
+    /* return FALSE, if transform type is not supported */
+    return FALSE;
   }
   return TRUE;
 }
@@ -347,6 +371,8 @@ gst_video_crop_meta_transform (GstBuffer * dest, GstMeta * meta,
   if (GST_META_TRANSFORM_IS_COPY (type)) {
     smeta = (GstVideoCropMeta *) meta;
     dmeta = gst_buffer_add_video_crop_meta (dest);
+    if (!dmeta)
+      return FALSE;
 
     GST_DEBUG ("copy crop metadata");
     dmeta->x = smeta->x;
@@ -359,6 +385,8 @@ gst_video_crop_meta_transform (GstBuffer * dest, GstMeta * meta,
 
     smeta = (GstVideoCropMeta *) meta;
     dmeta = gst_buffer_add_video_crop_meta (dest);
+    if (!dmeta)
+      return FALSE;
 
     ow = GST_VIDEO_INFO_WIDTH (trans->in_info);
     nw = GST_VIDEO_INFO_WIDTH (trans->out_info);
@@ -374,6 +402,9 @@ gst_video_crop_meta_transform (GstBuffer * dest, GstMeta * meta,
         dmeta->y);
     GST_DEBUG ("crop size   %dx%d -> %dx%d", smeta->width, smeta->height,
         dmeta->width, dmeta->height);
+  } else {
+    /* return FALSE, if transform type is not supported */
+    return FALSE;
   }
   return TRUE;
 }
@@ -484,6 +515,9 @@ gst_video_gl_texture_upload_meta_transform (GstBuffer * dest, GstMeta * meta,
       if (dmeta->user_data_copy)
         dmeta->user_data = dmeta->user_data_copy (dmeta->user_data);
     }
+  } else {
+    /* return FALSE, if transform type is not supported */
+    return FALSE;
   }
   return TRUE;
 }
@@ -606,6 +640,9 @@ gst_video_region_of_interest_meta_transform (GstBuffer * dest, GstMeta * meta,
     dmeta =
         gst_buffer_add_video_region_of_interest_meta_id (dest,
         smeta->roi_type, smeta->x, smeta->y, smeta->w, smeta->h);
+    if (!dmeta)
+      return FALSE;
+
     dmeta->id = smeta->id;
     dmeta->parent_id = smeta->parent_id;
   } else if (GST_VIDEO_META_TRANSFORM_IS_SCALE (type)) {
@@ -623,6 +660,9 @@ gst_video_region_of_interest_meta_transform (GstBuffer * dest, GstMeta * meta,
         gst_buffer_add_video_region_of_interest_meta_id (dest,
         smeta->roi_type, (smeta->x * nw) / ow, (smeta->y * nh) / oh,
         (smeta->w * nw) / ow, (smeta->h * nh) / oh);
+    if (!dmeta)
+      return FALSE;
+
     dmeta->id = smeta->id;
     dmeta->parent_id = smeta->parent_id;
 
@@ -630,6 +670,9 @@ gst_video_region_of_interest_meta_transform (GstBuffer * dest, GstMeta * meta,
         smeta->id, smeta->parent_id, smeta->x, smeta->y, dmeta->x, dmeta->y);
     GST_DEBUG ("region of interest size   %dx%d -> %dx%d", smeta->w, smeta->h,
         dmeta->w, dmeta->h);
+  } else {
+    /* return FALSE, if transform type is not supported */
+    return FALSE;
   }
   return TRUE;
 }

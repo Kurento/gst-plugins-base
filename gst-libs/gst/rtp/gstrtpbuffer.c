@@ -787,9 +787,11 @@ ensure_buffers (GstRTPBuffer * rtp)
   }
 
   if (changed) {
+    GstBuffer *buf = rtp->buffer;
+
     gst_rtp_buffer_unmap (rtp);
-    gst_buffer_remove_memory_range (rtp->buffer, pos, -1);
-    gst_rtp_buffer_map (rtp->buffer, GST_MAP_READWRITE, rtp);
+    gst_buffer_remove_memory_range (buf, pos, -1);
+    gst_rtp_buffer_map (buf, GST_MAP_READWRITE, rtp);
   }
 }
 

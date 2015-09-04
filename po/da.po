@@ -3,7 +3,7 @@
 # This file is distributed under the same license as the gst-plugins-base package.
 #
 # Mogens Jaeger <mogens@jaeger.tf>, 2007.
-# Joe Hansen <joedalton2@yahoo.dk>, 2009, 2010, 2011, 2013, 2014.
+# Joe Hansen <joedalton2@yahoo.dk>, 2009, 2010, 2011, 2013, 2014, 2015.
 #
 # capture -> optage
 # gain -> forstærkning
@@ -31,10 +31,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: gst-plugins-base 1.4.1\n"
+"Project-Id-Version: gst-plugins-base 1.5.2\n"
 "Report-Msgid-Bugs-To: http://bugzilla.gnome.org/\n"
-"POT-Creation-Date: 2015-06-24 22:47+0200\n"
-"PO-Revision-Date: 2014-08-29 16:38+0100\n"
+"POT-Creation-Date: 2015-08-19 12:37+0300\n"
+"PO-Revision-Date: 2015-06-27 16:38+0100\n"
 "Last-Translator: Joe Hansen <joedalton2@yahoo.dk>\n"
 "Language-Team: Danish <dansk@dansk-gruppen.dk>\n"
 "Language: da\n"
@@ -555,9 +555,9 @@ msgstr ""
 "Afslut ikke efter visning af den oprindelige enhedsliste, men vent på at "
 "enheder bliver tilføjet/fjernet."
 
-#, fuzzy, c-format
+#, c-format
 msgid "Volume: %.0f%%"
-msgstr "Lydstyrke"
+msgstr "Lydstyrke: %.0f%%"
 
 msgid "Buffering..."
 msgstr "Mellemlagrer ..."
@@ -566,87 +566,83 @@ msgid "Clock lost, selecting a new one\n"
 msgstr "Ur tabt, vælger et nyt ur\n"
 
 msgid "Reached end of play list."
-msgstr ""
+msgstr "Nåede slutningen af afspilningslisten."
 
 msgid "Paused"
-msgstr ""
+msgstr "På pause"
 
 #, c-format
 msgid "Now playing %s\n"
-msgstr ""
+msgstr "Afspiller %s\n"
 
 #, c-format
 msgid "About to finish, preparing next title: %s"
-msgstr ""
+msgstr "Ved at afslutte, forbereder næste titel: %s"
 
 #, c-format
 msgid "Playback rate: %.2f"
-msgstr ""
+msgstr "Afspilningshastighed: %.2f"
 
-#, fuzzy, c-format
+#, c-format
 msgid "Could not change playback rate to %.2f"
-msgstr "Kunne ikke afspille fra enheden i stereo-tilstand."
+msgstr "Kunne ikke ændre afspilningshastighed til %.2f"
 
 msgid "space"
-msgstr ""
+msgstr "mellemrum"
 
 msgid "pause/unpause"
-msgstr ""
+msgstr "pause/start"
 
 msgid "q or ESC"
-msgstr ""
+msgstr "q eller ESC"
 
 msgid "quit"
-msgstr ""
+msgstr "afslut"
 
 msgid "play next"
-msgstr ""
+msgstr "afspil næste"
 
 msgid "play previous"
-msgstr ""
+msgstr "afspil forrige"
 
 msgid "seek forward"
-msgstr ""
+msgstr "søg fremad"
 
 msgid "seek backward"
-msgstr ""
+msgstr "søg baglæns"
 
-#, fuzzy
 msgid "volume up"
-msgstr "Lydstyrke"
+msgstr "lydstyrke op"
 
 msgid "volume down"
-msgstr ""
+msgstr "lydstyrke ned"
 
 msgid "increase playback rate"
-msgstr ""
+msgstr "øg afspilningshastighed"
 
 msgid "decrease playback rate"
-msgstr ""
+msgstr "sænk afspilningshastighed"
 
 msgid "change playback direction"
-msgstr ""
+msgstr "ændr afspilningsretning"
 
 msgid "enable/disable trick modes"
-msgstr ""
+msgstr "aktiver/deaktiver trick-tilstande"
 
-#, fuzzy
 msgid "change audio track"
-msgstr "Denne cd har ingen lydspor"
+msgstr "ændr lydspor"
 
 msgid "change video track"
-msgstr ""
+msgstr "ændr videospor"
 
-#, fuzzy
 msgid "change subtitle track"
-msgstr "Kate-undertekstformat"
+msgstr "ændr undertekstspor"
 
 msgid "show keyboard shortcuts"
-msgstr ""
+msgstr "vis genvejstaster"
 
-#, fuzzy
 msgid "Interactive mode - keyboard controls:"
-msgstr "Interaktiv kontrol via tastatur"
+msgstr "Interaktiv tilstand - kontrol via tastatur:"
 
 msgid "Video sink to use (default is autovideosink)"
 msgstr "Brug denne videokanal (standard er autovideosink)"
@@ -660,9 +656,8 @@ msgstr "Aktiver afspilning uden huller"
 msgid "Shuffle playlist"
 msgstr "Bland afspilningsliste"
 
-#, fuzzy
 msgid "Disable interactive control via the keyboard"
-msgstr "Interaktiv kontrol via tastatur"
+msgstr "Deaktiver interaktiv kontrol via tastaturet"
 
 msgid "Volume"
 msgstr "Lydstyrke"
@@ -671,7 +666,7 @@ msgid "Playlist file containing input media files"
 msgstr "Afspilningsfil der indeholder mediefiler"
 
 msgid "Do not print any output (apart from errors)"
-msgstr ""
+msgstr "Udskriv ikke noget (undtagen fejl)"
 
 #, c-format
 msgid "Usage: %s FILE1|URI1 [FILE2|URI2] [FILE3|URI3] ..."
@@ -681,9 +676,4 @@ msgid "You must provide at least one filename or URI to play."
 msgstr "Du skal angive mindst et filnavn eller en adresse for at afspille."
 
 msgid "Press 'k' to see a list of keyboard shortcuts.\n"
-msgstr ""
-
-#~ msgid "A %s plugin is required to play this stream, but not installed."
-#~ msgstr ""
-#~ "Et %s plugin er nødvendigt ved afspilning af denne sekvens, men ikke "
-#~ "installeret."
+msgstr "Tryk »k« for at se en liste over genvejstaster.\n"

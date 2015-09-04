@@ -43,6 +43,29 @@
 #include "video-orc.h"
 #include "video-scaler.h"
 
+#ifndef GST_DISABLE_GST_DEBUG
+#define GST_CAT_DEFAULT ensure_debug_category()
+static GstDebugCategory *
+ensure_debug_category (void)
+{
+  static gsize cat_gonce = 0;
+
+  if (g_once_init_enter (&cat_gonce)) {
+    gsize cat_done;
+
+    cat_done = (gsize) _gst_debug_category_new ("video-scaler", 0,
+        "video-scaler object");
+
+    g_once_init_leave (&cat_gonce, cat_done);
+  }
+
+  return (GstDebugCategory *) cat_gonce;
+}
+
+#else
+#define ensure_debug_category() /* NOOP */
+#endif /* GST_DISABLE_GST_DEBUG */
+
 #define SCALE_U8          12
 #define SCALE_U8_ROUND    (1 << (SCALE_U8 -1))
 #define SCALE_U8_LQ       6
@@ -1316,14 +1339,15 @@ gst_video_scaler_horizontal (GstVideoScaler * scale, GstVideoFormat format,
     gpointer src, gpointer dest, guint dest_offset, guint width)
 {
   gint n_elems;
-  GstVideoScalerHFunc func;
+  GstVideoScalerHFunc func = NULL;
 
   g_return_if_fail (scale != NULL);
   g_return_if_fail (src != NULL);
   g_return_if_fail (dest != NULL);
   g_return_if_fail (dest_offset + width <= scale->resampler.out_size);
 
-  if (!get_functions (scale, NULL, format, &func, NULL, &n_elems, &width))
+  if (!get_functions (scale, NULL, format, &func, NULL, &n_elems, &width)
+      || func == NULL)
     goto no_func;
 
   if (scale->tmpwidth < width)
@@ -1357,20 +1381,22 @@ gst_video_scaler_vertical (GstVideoScaler * scale, GstVideoFormat format,
     gpointer src_lines[], gpointer dest, guint dest_offset, guint width)
 {
   gint n_elems;
-  GstVideoScalerVFunc func;
+  GstVideoScalerVFunc func = NULL;
 
   g_return_if_fail (scale != NULL);
   g_return_if_fail (src_lines != NULL);
   g_return_if_fail (dest != NULL);
   g_return_if_fail (dest_offset < scale->resampler.out_size);
 
-  if (!get_functions (NULL, scale, format, NULL, &func, &n_elems, &width))
+  if (!get_functions (NULL, scale, format, NULL, &func, &n_elems, &width)
+      || func == NULL)
     goto no_func;
 
   if (scale->tmpwidth < width)
     realloc_tmplines (scale, n_elems, width);
 
   func (scale, src_lines, dest, dest_offset, width, n_elems);
+
   return;
 
 no_func:
@@ -1410,8 +1436,8 @@ gst_video_scaler_2d (GstVideoScaler * hscale, GstVideoScaler * vscale,
     guint width, guint height)
 {
   gint n_elems;
-  GstVideoScalerHFunc hfunc;
-  GstVideoScalerVFunc vfunc;
+  GstVideoScalerHFunc hfunc = NULL;
+  GstVideoScalerVFunc vfunc = NULL;
   gint i;
 
   g_return_if_fail (src != NULL);

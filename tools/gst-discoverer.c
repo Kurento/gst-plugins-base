@@ -381,9 +381,16 @@ print_properties (GstDiscovererInfo * info, gint tab)
 static void
 print_info (GstDiscovererInfo * info, GError * err)
 {
-  GstDiscovererResult result = gst_discoverer_info_get_result (info);
+  GstDiscovererResult result;
   GstDiscovererStreamInfo *sinfo;
 
+  if (!info) {
+    g_print ("Could not discover URI\n");
+    g_print (" %s\n", err->message);
+    return;
+  }
+
+  result = gst_discoverer_info_get_result (info);
   g_print ("Done discovering %s\n", gst_discoverer_info_get_uri (info));
   switch (result) {
     case GST_DISCOVERER_OK:
@@ -555,6 +562,8 @@ main (int argc, char **argv)
 
   if (!g_option_context_parse (ctx, &argc, &argv, &err)) {
     g_print ("Error initializing: %s\n", err->message);
+    g_option_context_free (ctx);
+    g_clear_error (&err);
     exit (1);
   }
 
@@ -568,6 +577,7 @@ main (int argc, char **argv)
   dc = gst_discoverer_new (timeout * GST_SECOND, &err);
   if (G_UNLIKELY (dc == NULL)) {
     g_print ("Error initializing: %s\n", err->message);
+    g_clear_error (&err);
     exit (1);
   }
 

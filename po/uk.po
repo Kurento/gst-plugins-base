@@ -6,10 +6,10 @@
 # Yuri Chornoivan <yurchor@ukr.net>, 2010, 2011, 2012, 2013, 2014, 2015.
 msgid ""
 msgstr ""
-"Project-Id-Version: gst-plugins-base 1.5.1\n"
+"Project-Id-Version: gst-plugins-base 1.5.2\n"
 "Report-Msgid-Bugs-To: http://bugzilla.gnome.org/\n"
-"POT-Creation-Date: 2015-06-24 22:47+0200\n"
-"PO-Revision-Date: 2015-06-10 23:00+0300\n"
+"POT-Creation-Date: 2015-08-19 12:37+0300\n"
+"PO-Revision-Date: 2015-06-26 07:35+0300\n"
 "Last-Translator: Yuri Chornoivan <yurchor@ukr.net>\n"
 "Language-Team: Ukrainian <translation-team-uk@lists.sourceforge.net>\n"
 "Language: uk\n"
@@ -545,7 +545,7 @@ msgid "Reached end of play list."
 msgstr "Відтворення списку завершено."
 
 msgid "Paused"
-msgstr ""
+msgstr "Призупинено"
 
 #, c-format
 msgid "Now playing %s\n"
@@ -605,16 +605,14 @@ msgstr "змінити напрям відтворення"
 msgid "enable/disable trick modes"
 msgstr "увімкнути або вимкнути особливі режими"
 
-#, fuzzy
 msgid "change audio track"
-msgstr "На цьому компакт-диску немає звукових доріжок"
+msgstr "змінити звукову доріжку"
 
 msgid "change video track"
-msgstr ""
+msgstr "змінити відеодоріжку"
 
-#, fuzzy
 msgid "change subtitle track"
-msgstr "Формат субтитрів Kate"
+msgstr "змінити доріжку субтитрів"
 
 msgid "show keyboard shortcuts"
 msgstr "показати клавіатурні скорочення"

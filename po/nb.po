@@ -2,14 +2,14 @@
 # This file is put in the public domain.
 #
 # Kjartan Maraas <kmaraas@gnome.org>, 2004-2010.
-# Johnny A. Solbu <johnny@solbu.net>, 2012,
+# Johnny A. Solbu <johnny@solbu.net>, 2012-2015
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: gst-plugins-base 1.4.0\n"
+"Project-Id-Version: gst-plugins-base 1.5.2\n"
 "Report-Msgid-Bugs-To: http://bugzilla.gnome.org/\n"
-"POT-Creation-Date: 2015-06-24 22:47+0200\n"
-"PO-Revision-Date: 2014-07-22 12:38+0100\n"
+"POT-Creation-Date: 2015-08-19 12:37+0300\n"
+"PO-Revision-Date: 2015-07-11 01:33+0100\n"
 "Last-Translator: Johnny A. Solbu <johnny@solbu.net>\n"
 "Language-Team: Norwegian Bokmaal <i18n-nb@lister.ping.uio.no>\n"
 "Language: nb_NO\n"
@@ -17,7 +17,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
-"X-Generator: Poedit 1.5.4\n"
+"X-Generator: Poedit 1.5.7\n"
 
 msgid "Could not open device for playback in mono mode."
 msgstr "Kunne ikke åpne enheten for avspilling i mono-modus."
@@ -514,9 +514,9 @@ msgstr ""
 "Ikke avslutt etter å ha vist den første enheteslisten, men vent på at "
 "enheter blir lagt til/fjernet."
 
-#, fuzzy, c-format
+#, c-format
 msgid "Volume: %.0f%%"
-msgstr "Volum"
+msgstr "Volum: %.0f%%"
 
 msgid "Buffering..."
 msgstr "Bufrer ..."
@@ -525,87 +525,83 @@ msgid "Clock lost, selecting a new one\n"
 msgstr "Klokke tapt, velger en ny\n"
 
 msgid "Reached end of play list."
-msgstr ""
+msgstr "Nådde slutten av spillelisten."
 
 msgid "Paused"
-msgstr ""
+msgstr "Pauset"
 
 #, c-format
 msgid "Now playing %s\n"
-msgstr ""
+msgstr "Spiller nå %s\n"
 
 #, c-format
 msgid "About to finish, preparing next title: %s"
-msgstr ""
+msgstr "I ferd med å fullføre, forbereder neste tittel: %s"
 
 #, c-format
 msgid "Playback rate: %.2f"
-msgstr ""
+msgstr "Avspillingshastighet: %.2f"
 
-#, fuzzy, c-format
+#, c-format
 msgid "Could not change playback rate to %.2f"
-msgstr "Kunne ikke åpne enheten for avspilling i stereo-modus."
+msgstr "Kunne ikke endre avspillingshastigheten til %.2f"
 
 msgid "space"
-msgstr ""
+msgstr "avstand"
 
 msgid "pause/unpause"
-msgstr ""
+msgstr "pause/opphev pause"
 
 msgid "q or ESC"
-msgstr ""
+msgstr "q eller ESC"
 
 msgid "quit"
-msgstr ""
+msgstr "Avslutt"
 
 msgid "play next"
-msgstr ""
+msgstr "spill neste"
 
 msgid "play previous"
-msgstr ""
+msgstr "spill forige"
 
 msgid "seek forward"
-msgstr ""
+msgstr "søk forover"
 
 msgid "seek backward"
-msgstr ""
+msgstr "søk bakover"
 
-#, fuzzy
 msgid "volume up"
-msgstr "Volum"
+msgstr "Volum opp"
 
 msgid "volume down"
-msgstr ""
+msgstr "volum opp"
 
 msgid "increase playback rate"
-msgstr ""
+msgstr "øk avspillingshastigheten"
 
 msgid "decrease playback rate"
-msgstr ""
+msgstr "reduser avspillingshastigheten"
 
 msgid "change playback direction"
-msgstr ""
+msgstr "endre avspillingsretningen"
 
 msgid "enable/disable trick modes"
-msgstr ""
+msgstr "aktivere/deaktivere trikse-moduser\t"
 
-#, fuzzy
 msgid "change audio track"
-msgstr "Denne CDen har ingen lydspor"
+msgstr "endre lydspor"
 
 msgid "change video track"
-msgstr ""
+msgstr "endre videospor"
 
-#, fuzzy
 msgid "change subtitle track"
-msgstr "Kate undertekstformat"
+msgstr "endre undertekstspor"
 
 msgid "show keyboard shortcuts"
-msgstr ""
+msgstr "vis hurtigtaster"
 
-#, fuzzy
 msgid "Interactive mode - keyboard controls:"
-msgstr "Interaktiv kontroll via tastatur"
+msgstr "Interaktiv modus - tastaturkontroller:"
 
 msgid "Video sink to use (default is autovideosink)"
 msgstr "Video-sink som skal brukes (standard er autovideosink)"
@@ -619,9 +615,8 @@ msgstr "Aktiver sømløs avspilling"
 msgid "Shuffle playlist"
 msgstr "Stokke spilleliste"
 
-#, fuzzy
 msgid "Disable interactive control via the keyboard"
-msgstr "Interaktiv kontroll via tastatur"
+msgstr "Deaktiver interaktiv kontroll via tastaturet"
 
 msgid "Volume"
 msgstr "Volum"
@@ -630,7 +625,7 @@ msgid "Playlist file containing input media files"
 msgstr "Spillelistefil som inneholder inngangsmediefiler"
 
 msgid "Do not print any output (apart from errors)"
-msgstr ""
+msgstr "Ikke skriv noe utdata (bortsett fra feil)"
 
 #, c-format
 msgid "Usage: %s FILE1|URI1 [FILE2|URI2] [FILE3|URI3] ..."
@@ -640,7 +635,7 @@ msgid "You must provide at least one filename or URI to play."
 msgstr "Du må ha med minst ett filnavn eller nettadresse å spille."
 
 msgid "Press 'k' to see a list of keyboard shortcuts.\n"
-msgstr ""
+msgstr "Trykk «k» for å se en liste over hurtigtaster.\n"
 
 #~ msgid "A %s plugin is required to play this stream, but not installed."
 #~ msgstr ""

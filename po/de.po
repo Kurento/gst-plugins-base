@@ -7,10 +7,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: gst-plugins-base 1.5.1\n"
+"Project-Id-Version: gst-plugins-base 1.5.2\n"
 "Report-Msgid-Bugs-To: http://bugzilla.gnome.org/\n"
-"POT-Creation-Date: 2015-06-24 22:47+0200\n"
-"PO-Revision-Date: 2015-06-11 21:00+0100\n"
+"POT-Creation-Date: 2015-08-19 12:37+0300\n"
+"PO-Revision-Date: 2015-07-12 23:00+0100\n"
 "Last-Translator: Christian Kirbach <christian.kirbach@gmail.com>\n"
 "Language-Team: German <translation-team-de@lists.sourceforge.net>\n"
 "Language: de\n"
@@ -536,7 +536,7 @@ msgid "Reached end of play list."
 msgstr "Das Ende der Wiedergabeliste wurde erreicht."
 
 msgid "Paused"
-msgstr ""
+msgstr "Angehalten"
 
 #, c-format
 msgid "Now playing %s\n"
@@ -596,16 +596,14 @@ msgstr "Wiedergaberichtung ändern"
 msgid "enable/disable trick modes"
 msgstr "Trickmodi einschalten/ausschalten"
 
-#, fuzzy
 msgid "change audio track"
-msgstr "Auf dieser CD befinden sich keine Audio-Titel"
+msgstr "Audio-Titel wechseln"
 
 msgid "change video track"
-msgstr ""
+msgstr "Videl-Titel wechseln"
 
-#, fuzzy
 msgid "change subtitle track"
-msgstr "Untertitel-Format Kate"
+msgstr "Untertitel wechseln"
 
 msgid "show keyboard shortcuts"
 msgstr "Tastenkombinationen anzeigen"

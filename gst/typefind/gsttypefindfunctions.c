@@ -594,6 +594,21 @@ xml_type_find (GstTypeFind * tf, gpointer unused)
   }
 }
 
+/*** application/dash+xml ****************************************************/
+
+static GstStaticCaps dash_caps = GST_STATIC_CAPS ("application/dash+xml");
+
+#define DASH_CAPS gst_static_caps_get (&dash_caps)
+
+static void
+dash_mpd_type_find (GstTypeFind * tf, gpointer unused)
+{
+  if (xml_check_first_element (tf, "MPD", 3, FALSE) ||
+      xml_check_first_element (tf, "mpd", 3, FALSE)) {
+    gst_type_find_suggest (tf, GST_TYPE_FIND_MAXIMUM, DASH_CAPS);
+  }
+}
+
 /*** application/sdp *********************************************************/
 
 static GstStaticCaps sdp_caps = GST_STATIC_CAPS ("application/sdp");
@@ -637,6 +652,19 @@ smil_type_find (GstTypeFind * tf, gpointer unused)
 {
   if (xml_check_first_element (tf, "smil", 4, FALSE)) {
     gst_type_find_suggest (tf, GST_TYPE_FIND_MAXIMUM, SMIL_CAPS);
+  }
+}
+
+/*** application/ttml+xml *****************************************************/
+
+static GstStaticCaps ttml_xml_caps = GST_STATIC_CAPS ("application/ttml+xml");
+
+#define TTML_XML_CAPS (gst_static_caps_get(&ttml_xml_caps))
+static void
+ttml_xml_type_find (GstTypeFind * tf, gpointer unused)
+{
+  if (xml_check_first_element (tf, "tt", 2, FALSE)) {
+    gst_type_find_suggest (tf, GST_TYPE_FIND_MAXIMUM, TTML_XML_CAPS);
   }
 }
 
@@ -2653,8 +2681,12 @@ h264_video_type_find (GstTypeFind * tf, gpointer unused)
         if (nut == 15) {
           seen_ssps = TRUE;
           good++;
-        } else if (seen_ssps && (nut == 14 || nut == 20)) {
-          good++;
+        } else if (nut == 14 || nut == 20) {
+          /* Sometimes we see NAL 14 or 20 without SSPS
+           * if dropped into the middle of a stream -
+           * just ignore those (don't add to bad count) */
+          if (seen_ssps)
+            good++;
         } else {
           /* reserved */
           /* Theoretically these are good, since if they exist in the
@@ -3126,6 +3158,7 @@ qt_type_find (GstTypeFind * tf, gpointer unused)
         STRNCMP (&data[4], "ftyp", 4) == 0 ||
         STRNCMP (&data[4], "free", 4) == 0 ||
         STRNCMP (&data[4], "uuid", 4) == 0 ||
+        STRNCMP (&data[4], "moof", 4) == 0 ||
         STRNCMP (&data[4], "skip", 4) == 0) {
       if (tip == 0) {
         tip = GST_TYPE_FIND_LIKELY;
@@ -3475,6 +3508,12 @@ mod_type_find (GstTypeFind * tf, gpointer unused)
         probability = GST_TYPE_FIND_LIKELY;
         goto suggest_audio_mod_caps;
       }
+    }
+    /* UMX */
+    if (memcmp (data, "\xC1\x83\x2A\x9E", 4) == 0) {
+      mod_type = "umx";
+      probability = GST_TYPE_FIND_POSSIBLE;
+      goto suggest_audio_mod_caps;
     }
   }
   /* FAR (Farandole) (secondary detection) */
@@ -5530,7 +5569,7 @@ plugin_init (GstPlugin * plugin)
       tta_type_find, "tta", TTA_CAPS, NULL, NULL);
   TYPE_FIND_REGISTER (plugin, "audio/x-mod", GST_RANK_SECONDARY, mod_type_find,
       "669,amf,ams,dbm,digi,dmf,dsm,gdm,far,imf,it,j2b,mdl,med,mod,mt2,mtm,"
-      "okt,psm,ptm,sam,s3m,stm,stx,ult,xm", MOD_CAPS, NULL, NULL);
+      "okt,psm,ptm,sam,s3m,stm,stx,ult,umx,xm", MOD_CAPS, NULL, NULL);
   TYPE_FIND_REGISTER (plugin, "audio/mpeg", GST_RANK_PRIMARY, mp3_type_find,
       "mp3,mp2,mp1,mpga", MP3_CAPS, NULL, NULL);
   TYPE_FIND_REGISTER (plugin, "audio/x-ac3", GST_RANK_PRIMARY, ac3_type_find,
@@ -5582,6 +5621,8 @@ plugin_init (GstPlugin * plugin)
       GST_TYPE_FIND_MAXIMUM);
   TYPE_FIND_REGISTER (plugin, "application/x-shockwave-flash",
       GST_RANK_SECONDARY, swf_type_find, "swf,swfl", SWF_CAPS, NULL, NULL);
+  TYPE_FIND_REGISTER (plugin, "application/dash+xml",
+      GST_RANK_PRIMARY, dash_mpd_type_find, "mpd,MPD", DASH_CAPS, NULL, NULL);
   TYPE_FIND_REGISTER (plugin, "application/vnd.ms-sstr+xml",
       GST_RANK_PRIMARY, mss_manifest_type_find, NULL, MSS_MANIFEST_CAPS, NULL,
       NULL);
@@ -5601,6 +5642,8 @@ plugin_init (GstPlugin * plugin)
       sdp_type_find, "sdp", SDP_CAPS, NULL, NULL);
   TYPE_FIND_REGISTER (plugin, "application/smil", GST_RANK_SECONDARY,
       smil_type_find, "smil", SMIL_CAPS, NULL, NULL);
+  TYPE_FIND_REGISTER (plugin, "application/ttml+xml", GST_RANK_SECONDARY,
+      ttml_xml_type_find, "ttml+xml", TTML_XML_CAPS, NULL, NULL);
   TYPE_FIND_REGISTER (plugin, "application/xml", GST_RANK_MARGINAL,
       xml_type_find, "xml", GENERIC_XML_CAPS, NULL, NULL);
   TYPE_FIND_REGISTER_RIFF (plugin, "audio/x-wav", GST_RANK_PRIMARY, "wav",

@@ -610,7 +610,8 @@ gst_video_scale_set_info (GstVideoFilter * filter, GstCaps * in,
 
     if (videoscale->gamma_decode) {
       gst_structure_set (options,
-          GST_VIDEO_CONVERTER_OPT_GAMMA_MODE, G_TYPE_STRING, "remap", NULL);
+          GST_VIDEO_CONVERTER_OPT_GAMMA_MODE, GST_TYPE_VIDEO_GAMMA_MODE,
+          GST_VIDEO_GAMMA_MODE_REMAP, NULL);
     }
 
     if (videoscale->convert)
@@ -1077,6 +1078,8 @@ gst_video_scale_transform_frame (GstVideoFilter * filter,
 {
   GstVideoScale *videoscale = GST_VIDEO_SCALE_CAST (filter);
   GstFlowReturn ret = GST_FLOW_OK;
+
+  GST_CAT_DEBUG_OBJECT (GST_CAT_PERFORMANCE, filter, "doing video scaling");
 
   gst_video_converter_frame (videoscale->convert, in_frame, out_frame);
 

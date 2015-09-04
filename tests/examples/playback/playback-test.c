@@ -1180,6 +1180,7 @@ update_streams (PlaybackApp * app)
         str = gst_tag_list_to_string (tags);
         g_print ("video %d: %s\n", i, str);
         g_free (str);
+        gst_tag_list_unref (tags);
       }
       /* find good name for the label */
       name = g_strdup_printf ("video %d", i + 1);
@@ -1199,6 +1200,7 @@ update_streams (PlaybackApp * app)
         str = gst_tag_list_to_string (tags);
         g_print ("audio %d: %s\n", i, str);
         g_free (str);
+        gst_tag_list_unref (tags);
       }
       /* find good name for the label */
       name = g_strdup_printf ("audio %d", i + 1);
@@ -1228,6 +1230,7 @@ update_streams (PlaybackApp * app)
         if (value && G_VALUE_HOLDS_STRING (value)) {
           name = g_strdup_printf ("text %s", g_value_get_string (value));
         }
+        gst_tag_list_unref (tags);
       }
       /* find good name for the label if we didn't use a tag */
       if (name == NULL)
@@ -1317,6 +1320,7 @@ init_visualization_features (PlaybackApp * app)
     gtk_combo_box_text_append_text (GTK_COMBO_BOX_TEXT (app->vis_combo), name);
   }
   gtk_combo_box_set_active (GTK_COMBO_BOX (app->vis_combo), 0);
+  gst_plugin_feature_list_free (list);
 }
 
 static void
@@ -3381,7 +3385,7 @@ reset_app (PlaybackApp * app)
   g_list_free (app->paths);
   g_list_foreach (app->sub_paths, (GFunc) g_free, NULL);
   g_list_free (app->sub_paths);
-
+  g_array_free (app->vis_entries, TRUE);
   g_print ("free pipeline\n");
   gst_object_unref (app->pipeline);
 }
@@ -3411,7 +3415,7 @@ main (int argc, char **argv)
     g_print ("Error initializing: %s\n", err->message);
     exit (1);
   }
-
+  g_option_context_free (ctx);
   GST_DEBUG_CATEGORY_INIT (playback_debug, "playback-test", 0,
       "playback example");
 

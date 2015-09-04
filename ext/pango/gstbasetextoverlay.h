@@ -128,11 +128,11 @@ struct _GstBaseTextOverlay {
     GstSegment               segment;
     GstSegment               text_segment;
     GstBuffer               *text_buffer;
-    gboolean                text_linked;
-    gboolean                video_flushing;
-    gboolean                video_eos;
-    gboolean                text_flushing;
-    gboolean                text_eos;
+    gboolean                 text_linked;
+    gboolean                 video_flushing;
+    gboolean                 video_eos;
+    gboolean                 text_flushing;
+    gboolean                 text_eos;
 
     GMutex                   lock;
     GCond                    cond;  /* to signal removal of a queued text
@@ -140,16 +140,13 @@ struct _GstBaseTextOverlay {
                                      * a text segment update, or a change
                                      * in status (e.g. shutdown, flushing) */
 
+    /* stream metrics */
     GstVideoInfo             info;
     GstVideoFormat           format;
     gint                     width;
     gint                     height;
 
-    GstBaseTextOverlayVAlign     valign;
-    GstBaseTextOverlayHAlign     halign;
-    GstBaseTextOverlayWrapMode   wrap_mode;
-    GstBaseTextOverlayLineAlign  line_align;
-
+    /* properties */
     gint                     xpad;
     gint                     ypad;
     gint                     deltax;
@@ -161,29 +158,49 @@ struct _GstBaseTextOverlay {
     gboolean                 silent;
     gboolean                 wait_text;
     guint                    color, outline_color;
-
     PangoLayout             *layout;
-    gdouble                  shadow_offset;
-    gdouble                  outline_offset;
-    GstBuffer               *text_image;
-    gint                     image_width;
-    gint                     image_height;
-    gint                     baseline_y;
-
     gboolean                 auto_adjust_size;
-    gboolean                 need_render;
-
     gboolean                 draw_shadow;
     gboolean                 draw_outline;
-
     gint                     shading_value;  /* for timeoverlay subclass */
-
-    gboolean                 have_pango_markup;
     gboolean                 use_vertical_render;
+    GstBaseTextOverlayVAlign     valign;
+    GstBaseTextOverlayHAlign     halign;
+    GstBaseTextOverlayWrapMode   wrap_mode;
+    GstBaseTextOverlayLineAlign  line_align;
 
-    gboolean                 attach_compo_to_buffer;
+    /* text pad format */
+    gboolean                 have_pango_markup;
 
+    /* rendering state */
+    gboolean                 need_render;
+    GstBuffer               *text_image;
+
+    /* dimension relative to witch the render is done, this is the stream size
+     * or a portion of the window_size (adapted to aspect ratio) */
+    gint                     render_width;
+    gint                     render_height;
+    /* This is (render_width / width) uses to convert to stream scale */
+    gdouble                  render_scale;
+
+    /* dimension of text_image, the physical dimension */
+    gint                     image_width;
+    gint                     image_height;
+
+    /* window dimension, reported in the composition meta params. This is set
+     * to stream width, height if missing */
+    gint                     window_width;
+    gint                     window_height;
+
+    gdouble                  shadow_offset;
+    gdouble                  outline_offset;
+
+    PangoRectangle           ink_rect;
+    PangoRectangle           logical_rect;
+
+    gboolean                    attach_compo_to_buffer;
     GstVideoOverlayComposition *composition;
+    GstVideoOverlayComposition *upstream_composition;
 };
 
 struct _GstBaseTextOverlayClass {

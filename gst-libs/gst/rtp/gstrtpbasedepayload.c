@@ -349,10 +349,12 @@ static GstFlowReturn
 gst_rtp_base_depayload_handle_buffer (GstRTPBaseDepayload * filter,
     GstRTPBaseDepayloadClass * bclass, GstBuffer * in)
 {
+  GstBuffer *(*process_rtp_packet_func) (GstRTPBaseDepayload * base,
+      GstRTPBuffer * rtp_buffer);
+  GstBuffer *(*process_func) (GstRTPBaseDepayload * base, GstBuffer * in);
   GstRTPBaseDepayloadPrivate *priv;
   GstFlowReturn ret = GST_FLOW_OK;
   GstBuffer *out_buf;
-  GstClockTime pts, dts;
   guint16 seqnum;
   guint32 rtptime;
   gboolean discont, buf_discont;
@@ -360,6 +362,9 @@ gst_rtp_base_depayload_handle_buffer (GstRTPBaseDepayload * filter,
   GstRTPBuffer rtp = { NULL };
 
   priv = filter->priv;
+
+  process_func = bclass->process;
+  process_rtp_packet_func = bclass->process_rtp_packet;
 
   /* we must have a setcaps first */
   if (G_UNLIKELY (!priv->negotiated))
@@ -370,19 +375,12 @@ gst_rtp_base_depayload_handle_buffer (GstRTPBaseDepayload * filter,
 
   buf_discont = GST_BUFFER_IS_DISCONT (in);
 
-  pts = GST_BUFFER_PTS (in);
-  dts = GST_BUFFER_DTS (in);
-  /* convert to running_time and save the timestamp, this is the timestamp
-   * we put on outgoing buffers. */
-  pts = gst_segment_to_running_time (&filter->segment, GST_FORMAT_TIME, pts);
-  dts = gst_segment_to_running_time (&filter->segment, GST_FORMAT_TIME, dts);
-  priv->pts = pts;
-  priv->dts = dts;
+  priv->pts = GST_BUFFER_PTS (in);
+  priv->dts = GST_BUFFER_DTS (in);
   priv->duration = GST_BUFFER_DURATION (in);
 
   seqnum = gst_rtp_buffer_get_seq (&rtp);
   rtptime = gst_rtp_buffer_get_timestamp (&rtp);
-  gst_rtp_buffer_unmap (&rtp);
 
   priv->last_seqnum = seqnum;
   priv->last_rtptime = rtptime;
@@ -391,10 +389,10 @@ gst_rtp_base_depayload_handle_buffer (GstRTPBaseDepayload * filter,
 
   GST_LOG_OBJECT (filter, "discont %d, seqnum %u, rtptime %u, pts %"
       GST_TIME_FORMAT ", dts %" GST_TIME_FORMAT, buf_discont, seqnum, rtptime,
-      GST_TIME_ARGS (pts), GST_TIME_ARGS (dts));
+      GST_TIME_ARGS (priv->pts), GST_TIME_ARGS (priv->dts));
 
   /* Check seqnum. This is a very simple check that makes sure that the seqnums
-   * are striclty increasing, dropping anything that is out of the ordinary. We
+   * are strictly increasing, dropping anything that is out of the ordinary. We
    * can only do this when the next_seqnum is known. */
   if (G_LIKELY (priv->next_seqnum != -1)) {
     gap = gst_rtp_buffer_compare_seqnum (seqnum, priv->next_seqnum);
@@ -442,11 +440,17 @@ gst_rtp_base_depayload_handle_buffer (GstRTPBaseDepayload * filter,
     filter->need_newsegment = FALSE;
   }
 
-  if (G_UNLIKELY (bclass->process == NULL))
+  if (process_rtp_packet_func != NULL) {
+    out_buf = process_rtp_packet_func (filter, &rtp);
+    gst_rtp_buffer_unmap (&rtp);
+  } else if (process_func != NULL) {
+    gst_rtp_buffer_unmap (&rtp);
+    out_buf = process_func (filter, in);
+  } else {
     goto no_process;
+  }
 
   /* let's send it out to processing */
-  out_buf = bclass->process (filter, in);
   if (out_buf) {
     ret = gst_rtp_base_depayload_push (filter, out_buf);
   }
@@ -476,14 +480,16 @@ invalid_buffer:
   }
 dropping:
   {
+    gst_rtp_buffer_unmap (&rtp);
     GST_WARNING_OBJECT (filter, "%d <= 100, dropping old packet", gap);
     return GST_FLOW_OK;
   }
 no_process:
   {
+    gst_rtp_buffer_unmap (&rtp);
     /* this is not fatal but should be filtered earlier */
     GST_ELEMENT_ERROR (filter, STREAM, NOT_IMPLEMENTED, (NULL),
-        ("The subclass does not have a process method"));
+        ("The subclass does not have a process or process_rtp_packet method"));
     return GST_FLOW_ERROR;
   }
 }
@@ -555,7 +561,10 @@ gst_rtp_base_depayload_handle_event (GstRTPBaseDepayload * filter,
 
   switch (GST_EVENT_TYPE (event)) {
     case GST_EVENT_FLUSH_STOP:
+      GST_OBJECT_LOCK (filter);
       gst_segment_init (&filter->segment, GST_FORMAT_UNDEFINED);
+      GST_OBJECT_UNLOCK (filter);
+
       filter->need_newsegment = TRUE;
       filter->priv->next_seqnum = -1;
       gst_event_replace (&filter->priv->segment_event, NULL);
@@ -572,7 +581,10 @@ gst_rtp_base_depayload_handle_event (GstRTPBaseDepayload * filter,
     }
     case GST_EVENT_SEGMENT:
     {
+      GST_OBJECT_LOCK (filter);
       gst_event_copy_segment (event, &filter->segment);
+      GST_OBJECT_UNLOCK (filter);
+
       /* don't pass the event downstream, we generate our own segment including
        * the NTP time and other things we receive in caps */
       forward = FALSE;
@@ -642,8 +654,12 @@ create_segment_event (GstRTPBaseDepayload * filter, guint rtptime,
 
   priv = filter->priv;
 
+  /* We don't need the object lock around - the segment
+   * can't change here while we're holding the STREAM_LOCK
+   */
+
   /* determining the start of the segment */
-  start = 0;
+  start = filter->segment.start;
   if (priv->clock_base != -1 && position != -1) {
     GstClockTime exttime, gap;
 
@@ -664,12 +680,12 @@ create_segment_event (GstRTPBaseDepayload * filter, guint rtptime,
   }
 
   /* determining the stop of the segment */
-  stop = -1;
+  stop = filter->segment.stop;
   if (priv->npt_stop != -1)
     stop = start + (priv->npt_stop - priv->npt_start);
 
   if (position == -1)
-    position = 0;
+    position = start;
 
   running_time = gst_segment_to_running_time (&filter->segment,
       GST_FORMAT_TIME, start);
@@ -862,7 +878,6 @@ gst_rtp_base_depayload_change_state (GstElement * element,
       priv->next_seqnum = -1;
       priv->negotiated = FALSE;
       priv->discont = FALSE;
-      gst_event_replace (&filter->priv->segment_event, NULL);
       break;
     case GST_STATE_CHANGE_PAUSED_TO_PLAYING:
       break;
@@ -877,6 +892,7 @@ gst_rtp_base_depayload_change_state (GstElement * element,
       break;
     case GST_STATE_CHANGE_PAUSED_TO_READY:
       gst_caps_replace (&priv->last_caps, NULL);
+      gst_event_replace (&priv->segment_event, NULL);
       break;
     case GST_STATE_CHANGE_READY_TO_NULL:
       break;
@@ -891,8 +907,18 @@ gst_rtp_base_depayload_create_stats (GstRTPBaseDepayload * depayload)
 {
   GstRTPBaseDepayloadPrivate *priv;
   GstStructure *s;
+  GstClockTime pts = GST_CLOCK_TIME_NONE, dts = GST_CLOCK_TIME_NONE;
 
   priv = depayload->priv;
+
+  GST_OBJECT_LOCK (depayload);
+  if (depayload->segment.format != GST_FORMAT_UNDEFINED) {
+    pts = gst_segment_to_running_time (&depayload->segment, GST_FORMAT_TIME,
+        priv->pts);
+    dts = gst_segment_to_running_time (&depayload->segment, GST_FORMAT_TIME,
+        priv->dts);
+  }
+  GST_OBJECT_UNLOCK (depayload);
 
   s = gst_structure_new ("application/x-rtp-depayload-stats",
       "clock_rate", G_TYPE_UINT, depayload->clock_rate,
@@ -900,8 +926,8 @@ gst_rtp_base_depayload_create_stats (GstRTPBaseDepayload * depayload)
       "npt-stop", G_TYPE_UINT64, priv->npt_stop,
       "play-speed", G_TYPE_DOUBLE, priv->play_speed,
       "play-scale", G_TYPE_DOUBLE, priv->play_scale,
-      "running-time-dts", G_TYPE_UINT64, priv->dts,
-      "running-time-pts", G_TYPE_UINT64, priv->pts,
+      "running-time-dts", G_TYPE_UINT64, dts,
+      "running-time-pts", G_TYPE_UINT64, pts,
       "seqnum", G_TYPE_UINT, (guint) priv->last_seqnum,
       "timestamp", G_TYPE_UINT, (guint) priv->last_rtptime, NULL);
 

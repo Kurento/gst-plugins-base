@@ -7,10 +7,10 @@
 # Balázs Úr <urbalazs@gmail.com>, 2014, 2015.
 msgid ""
 msgstr ""
-"Project-Id-Version: gst-plugins-base 1.5.1\n"
+"Project-Id-Version: gst-plugins-base 1.5.2\n"
 "Report-Msgid-Bugs-To: http://bugzilla.gnome.org/\n"
-"POT-Creation-Date: 2015-06-24 22:47+0200\n"
-"PO-Revision-Date: 2015-06-14 08:28+0200\n"
+"POT-Creation-Date: 2015-08-19 12:37+0300\n"
+"PO-Revision-Date: 2015-06-30 13:34+0200\n"
 "Last-Translator: Balázs Úr <urbalazs@gmail.com>\n"
 "Language-Team: Hungarian <translation-team-hu@lists.sourceforge.net>\n"
 "Language: hu\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "X-Rosetta-Export-Date: 2007-03-10 00:18+0000\n"
-"X-Generator: Lokalize 1.2\n"
+"X-Generator: Lokalize 1.5\n"
 "Plural-Forms:  nplurals=2; plural=(n != 1);\n"
 
 msgid "Could not open device for playback in mono mode."
@@ -530,7 +530,7 @@ msgid "Reached end of play list."
 msgstr "A lejátszólista vége elérve."
 
 msgid "Paused"
-msgstr ""
+msgstr "Szüneteltetve"
 
 #, c-format
 msgid "Now playing %s\n"
@@ -590,16 +590,14 @@ msgstr "lejátszási irány megváltoztatása"
 msgid "enable/disable trick modes"
 msgstr "trükk módok engedélyezése/letiltása"
 
-#, fuzzy
 msgid "change audio track"
-msgstr "Ez a CD nem rendelkezik hangsávokkal"
+msgstr "hangsáv megváltoztatása"
 
 msgid "change video track"
-msgstr ""
+msgstr "videosáv megváltoztatása"
 
-#, fuzzy
 msgid "change subtitle track"
-msgstr "Kate feliratformátum"
+msgstr "feliratsáv megváltoztatása"
 
 msgid "show keyboard shortcuts"
 msgstr "gyorsbillentyűk megjelenítése"

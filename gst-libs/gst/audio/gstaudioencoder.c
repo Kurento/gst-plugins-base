@@ -258,9 +258,15 @@ struct _GstAudioEncoderPrivate
   gboolean hard_min;
   gboolean drainable;
 
-  /* pending tags */
+  /* upstream stream tags (global tags are passed through as-is) */
+  GstTagList *upstream_tags;
+
+  /* subclass tags */
   GstTagList *tags;
+  GstTagMergeMode tags_merge_mode;
+
   gboolean tags_changed;
+
   /* pending serialized sink events, will be sent from finish_frame() */
   GList *pending_events;
 };
@@ -347,6 +353,11 @@ static gboolean gst_audio_encoder_negotiate_unlocked (GstAudioEncoder * enc);
 static gboolean gst_audio_encoder_transform_meta_default (GstAudioEncoder *
     encoder, GstBuffer * outbuf, GstMeta * meta, GstBuffer * inbuf);
 
+static gboolean gst_audio_encoder_sink_query_default (GstAudioEncoder * encoder,
+    GstQuery * query);
+static gboolean gst_audio_encoder_src_query_default (GstAudioEncoder * encoder,
+    GstQuery * query);
+
 static void
 gst_audio_encoder_class_init (GstAudioEncoderClass * klass)
 {
@@ -392,6 +403,8 @@ gst_audio_encoder_class_init (GstAudioEncoderClass * klass)
   klass->getcaps = gst_audio_encoder_getcaps_default;
   klass->sink_event = gst_audio_encoder_sink_event_default;
   klass->src_event = gst_audio_encoder_src_event_default;
+  klass->sink_query = gst_audio_encoder_sink_query_default;
+  klass->src_query = gst_audio_encoder_src_query_default;
   klass->propose_allocation = gst_audio_encoder_propose_allocation_default;
   klass->decide_allocation = gst_audio_encoder_decide_allocation_default;
   klass->negotiate = gst_audio_encoder_negotiate_default;
@@ -483,9 +496,14 @@ gst_audio_encoder_reset (GstAudioEncoder * enc, gboolean full)
     memset (&enc->priv->ctx, 0, sizeof (enc->priv->ctx));
     gst_audio_info_init (&enc->priv->ctx.info);
 
+    if (enc->priv->upstream_tags) {
+      gst_tag_list_unref (enc->priv->upstream_tags);
+      enc->priv->upstream_tags = NULL;
+    }
     if (enc->priv->tags)
       gst_tag_list_unref (enc->priv->tags);
     enc->priv->tags = NULL;
+    enc->priv->tags_merge_mode = GST_TAG_MERGE_APPEND;
     enc->priv->tags_changed = FALSE;
 
     g_list_foreach (enc->priv->pending_events, (GFunc) gst_event_unref, NULL);
@@ -604,28 +622,50 @@ gst_audio_encoder_push_pending_events (GstAudioEncoder * enc)
   }
 }
 
-static inline void
-gst_audio_encoder_check_and_push_ending_tags (GstAudioEncoder * enc)
+static GstEvent *
+gst_audio_encoder_create_merged_tags_event (GstAudioEncoder * enc)
 {
-  if (G_UNLIKELY (enc->priv->tags && enc->priv->tags_changed)) {
+  GstTagList *merged_tags;
+
+  GST_LOG_OBJECT (enc, "upstream : %" GST_PTR_FORMAT, enc->priv->upstream_tags);
+  GST_LOG_OBJECT (enc, "encoder  : %" GST_PTR_FORMAT, enc->priv->tags);
+  GST_LOG_OBJECT (enc, "mode     : %d", enc->priv->tags_merge_mode);
+
+  merged_tags =
+      gst_tag_list_merge (enc->priv->upstream_tags, enc->priv->tags,
+      enc->priv->tags_merge_mode);
+
+  GST_DEBUG_OBJECT (enc, "merged   : %" GST_PTR_FORMAT, merged_tags);
+
+  if (merged_tags == NULL)
+    return NULL;
+
+  if (gst_tag_list_is_empty (merged_tags)) {
+    gst_tag_list_unref (merged_tags);
+    return NULL;
+  }
+
+  /* add codec info to pending tags */
 #if 0
-    GstCaps *caps;
+  caps = gst_pad_get_current_caps (enc->srcpad);
+  gst_pb_utils_add_codec_description_to_tag_list (merged_tags,
+      GST_TAG_AUDIO_CODEC, caps);
 #endif
 
-    /* add codec info to pending tags */
-#if 0
-    if (!enc->priv->tags)
-      enc->priv->tags = gst_tag_list_new ();
-    enc->priv->tags = gst_tag_list_make_writable (enc->priv->tags);
-    caps = gst_pad_get_current_caps (enc->srcpad);
-    gst_pb_utils_add_codec_description_to_tag_list (enc->priv->tags,
-        GST_TAG_CODEC, caps);
-    gst_pb_utils_add_codec_description_to_tag_list (enc->priv->tags,
-        GST_TAG_AUDIO_CODEC, caps);
-#endif
-    GST_DEBUG_OBJECT (enc, "sending tags %" GST_PTR_FORMAT, enc->priv->tags);
-    gst_audio_encoder_push_event (enc,
-        gst_event_new_tag (gst_tag_list_ref (enc->priv->tags)));
+  return gst_event_new_tag (merged_tags);
+}
+
+static void
+gst_audio_encoder_check_and_push_pending_tags (GstAudioEncoder * enc)
+{
+  if (enc->priv->tags_changed) {
+    GstEvent *tags_event;
+
+    tags_event = gst_audio_encoder_create_merged_tags_event (enc);
+
+    if (tags_event != NULL)
+      gst_audio_encoder_push_event (enc, tags_event);
+
     enc->priv->tags_changed = FALSE;
   }
 }
@@ -753,8 +793,8 @@ gst_audio_encoder_finish_frame (GstAudioEncoder * enc, GstBuffer * buf,
 
   gst_audio_encoder_push_pending_events (enc);
 
-  /* send after pending events, which likely includes newsegment event */
-  gst_audio_encoder_check_and_push_ending_tags (enc);
+  /* send after pending events, which likely includes segment event */
+  gst_audio_encoder_check_and_push_pending_tags (enc);
 
   /* remove corresponding samples from input */
   if (samples < 0)
@@ -1533,7 +1573,7 @@ gst_audio_encoder_sink_event_default (GstAudioEncoder * enc, GstEvent * event)
 
       /* check for pending events and tags */
       gst_audio_encoder_push_pending_events (enc);
-      gst_audio_encoder_check_and_push_ending_tags (enc);
+      gst_audio_encoder_check_and_push_pending_tags (enc);
 
       GST_AUDIO_ENCODER_STREAM_UNLOCK (enc);
 
@@ -1554,6 +1594,21 @@ gst_audio_encoder_sink_event_default (GstAudioEncoder * enc, GstEvent * event)
       break;
     }
 
+    case GST_EVENT_STREAM_START:
+    {
+      GST_AUDIO_ENCODER_STREAM_LOCK (enc);
+      /* Flush upstream tags after a STREAM_START */
+      GST_DEBUG_OBJECT (enc, "received STREAM_START. Clearing taglist");
+      if (enc->priv->upstream_tags) {
+        gst_tag_list_unref (enc->priv->upstream_tags);
+        enc->priv->upstream_tags = NULL;
+        enc->priv->tags_changed = TRUE;
+      }
+      GST_AUDIO_ENCODER_STREAM_UNLOCK (enc);
+      res = gst_audio_encoder_push_event (enc, event);
+      break;
+    }
+
     case GST_EVENT_TAG:
     {
       GstTagList *tags;
@@ -1561,31 +1616,40 @@ gst_audio_encoder_sink_event_default (GstAudioEncoder * enc, GstEvent * event)
       gst_event_parse_tag (event, &tags);
 
       if (gst_tag_list_get_scope (tags) == GST_TAG_SCOPE_STREAM) {
-        tags = gst_tag_list_copy (tags);
+        GST_AUDIO_ENCODER_STREAM_LOCK (enc);
+        if (enc->priv->upstream_tags != tags) {
+          tags = gst_tag_list_copy (tags);
 
-        /* FIXME: make generic based on GST_TAG_FLAG_ENCODED */
-        gst_tag_list_remove_tag (tags, GST_TAG_CODEC);
-        gst_tag_list_remove_tag (tags, GST_TAG_AUDIO_CODEC);
-        gst_tag_list_remove_tag (tags, GST_TAG_VIDEO_CODEC);
-        gst_tag_list_remove_tag (tags, GST_TAG_SUBTITLE_CODEC);
-        gst_tag_list_remove_tag (tags, GST_TAG_CONTAINER_FORMAT);
-        gst_tag_list_remove_tag (tags, GST_TAG_BITRATE);
-        gst_tag_list_remove_tag (tags, GST_TAG_NOMINAL_BITRATE);
-        gst_tag_list_remove_tag (tags, GST_TAG_MAXIMUM_BITRATE);
-        gst_tag_list_remove_tag (tags, GST_TAG_MINIMUM_BITRATE);
-        gst_tag_list_remove_tag (tags, GST_TAG_ENCODER);
-        gst_tag_list_remove_tag (tags, GST_TAG_ENCODER_VERSION);
+          /* FIXME: make generic based on GST_TAG_FLAG_ENCODED */
+          gst_tag_list_remove_tag (tags, GST_TAG_CODEC);
+          gst_tag_list_remove_tag (tags, GST_TAG_AUDIO_CODEC);
+          gst_tag_list_remove_tag (tags, GST_TAG_VIDEO_CODEC);
+          gst_tag_list_remove_tag (tags, GST_TAG_SUBTITLE_CODEC);
+          gst_tag_list_remove_tag (tags, GST_TAG_CONTAINER_FORMAT);
+          gst_tag_list_remove_tag (tags, GST_TAG_BITRATE);
+          gst_tag_list_remove_tag (tags, GST_TAG_NOMINAL_BITRATE);
+          gst_tag_list_remove_tag (tags, GST_TAG_MAXIMUM_BITRATE);
+          gst_tag_list_remove_tag (tags, GST_TAG_MINIMUM_BITRATE);
+          gst_tag_list_remove_tag (tags, GST_TAG_ENCODER);
+          gst_tag_list_remove_tag (tags, GST_TAG_ENCODER_VERSION);
 
-        gst_audio_encoder_merge_tags (enc, tags, GST_TAG_MERGE_REPLACE);
-        gst_tag_list_unref (tags);
+          if (enc->priv->upstream_tags)
+            gst_tag_list_unref (enc->priv->upstream_tags);
+          enc->priv->upstream_tags = tags;
+          GST_INFO_OBJECT (enc, "upstream stream tags: %" GST_PTR_FORMAT, tags);
+        }
         gst_event_unref (event);
-        event = NULL;
-        res = TRUE;
-        break;
+        event = gst_audio_encoder_create_merged_tags_event (enc);
+        GST_AUDIO_ENCODER_STREAM_UNLOCK (enc);
+
+        /* No tags, go out of here instead of fall through */
+        if (!event) {
+          res = TRUE;
+          break;
+        }
       }
       /* fall through */
     }
-
     default:
       /* Forward non-serialized events immediately. */
       if (!GST_EVENT_IS_SERIALIZED (event)) {
@@ -1630,13 +1694,10 @@ gst_audio_encoder_sink_event (GstPad * pad, GstObject * parent,
 }
 
 static gboolean
-gst_audio_encoder_sink_query (GstPad * pad, GstObject * parent,
-    GstQuery * query)
+gst_audio_encoder_sink_query_default (GstAudioEncoder * enc, GstQuery * query)
 {
+  GstPad *pad = GST_AUDIO_ENCODER_SINK_PAD (enc);
   gboolean res = FALSE;
-  GstAudioEncoder *enc;
-
-  enc = GST_AUDIO_ENCODER (parent);
 
   switch (GST_QUERY_TYPE (query)) {
     case GST_QUERY_FORMATS:
@@ -1684,12 +1745,32 @@ gst_audio_encoder_sink_query (GstPad * pad, GstObject * parent,
       break;
     }
     default:
-      res = gst_pad_query_default (pad, parent, query);
+      res = gst_pad_query_default (pad, GST_OBJECT (enc), query);
       break;
   }
 
 error:
   return res;
+}
+
+static gboolean
+gst_audio_encoder_sink_query (GstPad * pad, GstObject * parent,
+    GstQuery * query)
+{
+  GstAudioEncoder *encoder;
+  GstAudioEncoderClass *encoder_class;
+  gboolean ret = FALSE;
+
+  encoder = GST_AUDIO_ENCODER (parent);
+  encoder_class = GST_AUDIO_ENCODER_GET_CLASS (encoder);
+
+  GST_DEBUG_OBJECT (encoder, "received query %d, %s", GST_QUERY_TYPE (query),
+      GST_QUERY_TYPE_NAME (query));
+
+  if (encoder_class->sink_query)
+    ret = encoder_class->sink_query (encoder, query);
+
+  return ret;
 }
 
 static gboolean
@@ -1841,12 +1922,10 @@ exit:
  * segment stuff etc at all
  * Supposedly that's backward compatibility ... */
 static gboolean
-gst_audio_encoder_src_query (GstPad * pad, GstObject * parent, GstQuery * query)
+gst_audio_encoder_src_query_default (GstAudioEncoder * enc, GstQuery * query)
 {
-  GstAudioEncoder *enc;
+  GstPad *pad = GST_AUDIO_ENCODER_SRC_PAD (enc);
   gboolean res = FALSE;
-
-  enc = GST_AUDIO_ENCODER (parent);
 
   GST_LOG_OBJECT (enc, "handling query: %" GST_PTR_FORMAT, query);
 
@@ -1939,12 +2018,32 @@ gst_audio_encoder_src_query (GstPad * pad, GstObject * parent, GstQuery * query)
       break;
     }
     default:
-      res = gst_pad_query_default (pad, parent, query);
+      res = gst_pad_query_default (pad, GST_OBJECT (enc), query);
       break;
   }
 
   return res;
 }
+
+static gboolean
+gst_audio_encoder_src_query (GstPad * pad, GstObject * parent, GstQuery * query)
+{
+  GstAudioEncoder *encoder;
+  GstAudioEncoderClass *encoder_class;
+  gboolean ret = FALSE;
+
+  encoder = GST_AUDIO_ENCODER (parent);
+  encoder_class = GST_AUDIO_ENCODER_GET_CLASS (encoder);
+
+  GST_DEBUG_OBJECT (encoder, "received query %d, %s", GST_QUERY_TYPE (query),
+      GST_QUERY_TYPE_NAME (query));
+
+  if (encoder_class->src_query)
+    ret = encoder_class->src_query (encoder, query);
+
+  return ret;
+}
+
 
 static void
 gst_audio_encoder_set_property (GObject * object, guint prop_id,
@@ -2549,16 +2648,16 @@ gst_audio_encoder_get_drainable (GstAudioEncoder * enc)
 /**
  * gst_audio_encoder_merge_tags:
  * @enc: a #GstAudioEncoder
- * @tags: a #GstTagList to merge
- * @mode: the #GstTagMergeMode to use
+ * @tags: (allow-none): a #GstTagList to merge, or NULL to unset
+ *     previously-set tags
+ * @mode: the #GstTagMergeMode to use, usually #GST_TAG_MERGE_REPLACE
  *
- * Adds tags to so-called pending tags, which will be processed
- * before pushing out data downstream.
+ * Sets the audio encoder tags and how they should be merged with any
+ * upstream stream tags. This will override any tags previously-set
+ * with gst_audio_encoder_merge_tags().
  *
  * Note that this is provided for convenience, and the subclass is
- * not required to use this and can still do tag handling on its own,
- * although it should be aware that baseclass already takes care
- * of the usual CODEC/AUDIO_CODEC tags.
+ * not required to use this and can still do tag handling on its own.
  *
  * MT safe.
  */
@@ -2566,19 +2665,25 @@ void
 gst_audio_encoder_merge_tags (GstAudioEncoder * enc,
     const GstTagList * tags, GstTagMergeMode mode)
 {
-  GstTagList *otags;
-
   g_return_if_fail (GST_IS_AUDIO_ENCODER (enc));
   g_return_if_fail (tags == NULL || GST_IS_TAG_LIST (tags));
+  g_return_if_fail (tags == NULL || mode != GST_TAG_MERGE_UNDEFINED);
 
   GST_AUDIO_ENCODER_STREAM_LOCK (enc);
-  if (tags)
-    GST_DEBUG_OBJECT (enc, "merging tags %" GST_PTR_FORMAT, tags);
-  otags = enc->priv->tags;
-  enc->priv->tags = gst_tag_list_merge (enc->priv->tags, tags, mode);
-  if (otags)
-    gst_tag_list_unref (otags);
-  enc->priv->tags_changed = TRUE;
+  if (enc->priv->tags != tags) {
+    if (enc->priv->tags) {
+      gst_tag_list_unref (enc->priv->tags);
+      enc->priv->tags = NULL;
+      enc->priv->tags_merge_mode = GST_TAG_MERGE_APPEND;
+    }
+    if (tags) {
+      enc->priv->tags = gst_tag_list_ref ((GstTagList *) tags);
+      enc->priv->tags_merge_mode = mode;
+    }
+
+    GST_DEBUG_OBJECT (enc, "setting encoder tags to %" GST_PTR_FORMAT, tags);
+    enc->priv->tags_changed = TRUE;
+  }
   GST_AUDIO_ENCODER_STREAM_UNLOCK (enc);
 }
 

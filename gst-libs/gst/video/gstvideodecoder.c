@@ -25,12 +25,13 @@
 /**
  * SECTION:gstvideodecoder
  * @short_description: Base class for video decoders
- * @see_also: 
+ * @see_also:
  *
  * This base class is for video decoders turning encoded data into raw video
  * frames.
  *
- * The GstVideoDecoder base class and derived subclasses should cooperate as follows:
+ * The GstVideoDecoder base class and derived subclasses should cooperate as
+ * follows:
  * <orderedlist>
  * <listitem>
  *   <itemizedlist><title>Configuration</title>
@@ -46,7 +47,8 @@
  *     parameters require reconfiguration.
  *   </para></listitem>
  *   <listitem><para>
- *     Incoming data buffers are processed as needed, described in Data Processing below.
+ *     Incoming data buffers are processed as needed, described in Data
+ *     Processing below.
  *   </para></listitem>
  *   <listitem><para>
  *     GstVideoDecoder calls @stop at end of all processing.
@@ -62,15 +64,17 @@
  *       corresponding to and referred to as 'frames'.
  *     </para></listitem>
  *     <listitem><para>
- *       Each input frame is provided in turn to the subclass' @handle_frame callback.
+ *       Each input frame is provided in turn to the subclass' @handle_frame
+ *       callback.
  *       The ownership of the frame is given to the @handle_frame callback.
  *     </para></listitem>
  *     <listitem><para>
  *       If codec processing results in decoded data, the subclass should call
  *       @gst_video_decoder_finish_frame to have decoded data pushed.
- *       downstream. Otherwise, the subclass must call @gst_video_decoder_drop_frame, to
- *       allow the base class to do timestamp and offset tracking, and possibly to
- *       requeue the frame for a later attempt in the case of reverse playback.
+ *       downstream. Otherwise, the subclass must call
+ *       @gst_video_decoder_drop_frame, to allow the base class to do timestamp
+ *       and offset tracking, and possibly to requeue the frame for a later
+ *       attempt in the case of reverse playback.
  *     </para></listitem>
  *   </itemizedlist>
  * </listitem>
@@ -87,20 +91,21 @@
  *   <listitem>
  *     <itemizedlist><title>Seeking/Flushing</title>
  *     <listitem><para>
- *   When the pipeline is seeked or otherwise flushed, the subclass is informed via a call
- *   to its @reset callback, with the hard parameter set to true. This indicates the
- *   subclass should drop any internal data queues and timestamps and prepare for a fresh
- *   set of buffers to arrive for parsing and decoding.
+ *   When the pipeline is seeked or otherwise flushed, the subclass is
+ *   informed via a call to its @reset callback, with the hard parameter
+ *   set to true. This indicates the subclass should drop any internal data
+ *   queues and timestamps and prepare for a fresh set of buffers to arrive
+ *   for parsing and decoding.
  *     </para></listitem>
  *     </itemizedlist>
  *   </listitem>
  *   <listitem>
  *     <itemizedlist><title>End Of Stream</title>
  *     <listitem><para>
- *   At end-of-stream, the subclass @parse function may be called some final times with the 
- *   at_eos parameter set to true, indicating that the element should not expect any more data
- *   to be arriving, and it should parse and remaining frames and call
- *   gst_video_decoder_have_frame() if possible.
+ *   At end-of-stream, the subclass @parse function may be called some final
+ *   times with the at_eos parameter set to true, indicating that the element
+ *   should not expect any more data to be arriving, and it should parse and
+ *   remaining frames and call gst_video_decoder_have_frame() if possible.
  *     </para></listitem>
  *     </itemizedlist>
  *   </listitem>
@@ -125,26 +130,30 @@
  * should rather be left to upstream demuxer, parser or alike.  This simple
  * approach caters for seeking and duration reporting using estimated input
  * bitrates. To enable it, a subclass should call
- * @gst_video_decoder_set_estimate_rate to enable handling of incoming byte-streams.
+ * @gst_video_decoder_set_estimate_rate to enable handling of incoming
+ * byte-streams.
  *
  * The base class provides some support for reverse playback, in particular
  * in case incoming data is not packetized or upstream does not provide
- * fragments on keyframe boundaries.  However, the subclass should then be prepared
- * for the parsing and frame processing stage to occur separately (in normal
- * forward processing, the latter immediately follows the former),
- * The subclass also needs to ensure the parsing stage properly marks keyframes,
- * unless it knows the upstream elements will do so properly for incoming data.
+ * fragments on keyframe boundaries.  However, the subclass should then be
+ * prepared for the parsing and frame processing stage to occur separately
+ * (in normal forward processing, the latter immediately follows the former),
+ * The subclass also needs to ensure the parsing stage properly marks
+ * keyframes, unless it knows the upstream elements will do so properly for
+ * incoming data.
  *
  * The bare minimum that a functional subclass needs to implement is:
  * <itemizedlist>
  *   <listitem><para>Provide pad templates</para></listitem>
  *   <listitem><para>
- *      Inform the base class of output caps via @gst_video_decoder_set_output_state
+ *      Inform the base class of output caps via
+ *      @gst_video_decoder_set_output_state
  *   </para></listitem>
  *   <listitem><para>
  *      Parse input data, if it is not considered packetized from upstream
- *      Data will be provided to @parse which should invoke @gst_video_decoder_add_to_frame and
- *      @gst_video_decoder_have_frame to separate the data belonging to each video frame.
+ *      Data will be provided to @parse which should invoke
+ *      @gst_video_decoder_add_to_frame and @gst_video_decoder_have_frame to
+ *      separate the data belonging to each video frame.
  *   </para></listitem>
  *   <listitem><para>
  *      Accept data in @handle_frame and provide decoded results to
@@ -177,16 +186,17 @@
  * on whether forward or reverse playback is requested.
  *
  * Forward playback:
- *   * Incoming buffer -> @parse() -> add_to_frame()/have_frame() -> handle_frame() -> 
- *     push downstream
+ *   * Incoming buffer -> @parse() -> add_to_frame()/have_frame() ->
+ *     handle_frame() -> push downstream
  *
- * Reverse playback is more complicated, since it involves gathering incoming data regions
- * as we loop backwards through the upstream data. The processing concept (using incoming
- * buffers as containing one frame each to simplify things) is:
+ * Reverse playback is more complicated, since it involves gathering incoming
+ * data regions as we loop backwards through the upstream data. The processing
+ * concept (using incoming buffers as containing one frame each to simplify
+ * things) is:
  *
  * Upstream data we want to play:
  *  Buffer encoded order:  1  2  3  4  5  6  7  8  9  EOS
- *  Keyframe flag:            K        K        
+ *  Keyframe flag:            K        K
  *  Groupings:             AAAAAAA  BBBBBBB  CCCCCCC
  *
  * Input:
@@ -210,19 +220,20 @@
  * this:
  *
  *   while (gather)
- *     take head of queue and prepend to parse queue (this reverses the sequence,
- *     so parse queue is 7 -> 8 -> 9)
+ *     take head of queue and prepend to parse queue (this reverses the
+ *     sequence, so parse queue is 7 -> 8 -> 9)
  *
- *   Next, we process the parse queue, which now contains all un-parsed packets (including
- *   any leftover ones from the previous decode section)
+ *   Next, we process the parse queue, which now contains all un-parsed packets
+ *   (including any leftover ones from the previous decode section)
  *
  *   for each buffer now in the parse queue:
  *     Call the subclass parse function, prepending each resulting frame to
  *     the parse_gather queue. Buffers which precede the first one that
- *     produces a parsed frame are retained in the parse queue for re-processing on
- *     the next cycle of parsing.
+ *     produces a parsed frame are retained in the parse queue for
+ *     re-processing on the next cycle of parsing.
  *
- *   The parse_gather queue now contains frame objects ready for decoding, in reverse order.
+ *   The parse_gather queue now contains frame objects ready for decoding,
+ *   in reverse order.
  *   parse_gather: 9 -> 8 -> 7
  *
  *   while (parse_gather)
@@ -233,8 +244,8 @@
  *  Processing the decode queue results in frames with attached output buffers
  *  stored in the 'output_queue' ready for outputting in reverse order.
  *
- * After we flushed the gather queue and parsed it, we add 4 to the (now empty) gather queue.
- * We get the following situation:
+ * After we flushed the gather queue and parsed it, we add 4 to the (now empty)
+ * gather queue. We get the following situation:
  *
  *  gather queue:    4
  *  decode queue:    7  8  9
@@ -262,7 +273,7 @@
  *   output queue:
  *
  *    gather queue:    4
- *    decode queue:    
+ *    decode queue:
  *    output queue:    9  8  7  6  5
  *
  *   Now output all the frames in the output queue, picking a frame from the
@@ -287,7 +298,7 @@
  *  Decoded output:
  *
  *    gather queue:    1
- *    decode queue:    
+ *    decode queue:
  *    output queue:    4  3  2
  *
  *  Leftover buffer 1 cannot be decoded and must be discarded.
@@ -408,8 +419,17 @@ struct _GstVideoDecoderPrivate
   gint64 min_latency;
   gint64 max_latency;
 
+  /* upstream stream tags (global tags are passed through as-is) */
+  GstTagList *upstream_tags;
+
+  /* subclass tags */
   GstTagList *tags;
+  GstTagMergeMode tags_merge_mode;
+
   gboolean tags_changed;
+
+  /* flags */
+  gboolean use_default_pad_acceptcaps;
 };
 
 static GstElementClass *parent_class = NULL;
@@ -439,6 +459,8 @@ static void gst_video_decoder_reset (GstVideoDecoder * decoder, gboolean full,
 static GstFlowReturn gst_video_decoder_decode_frame (GstVideoDecoder * decoder,
     GstVideoCodecFrame * frame);
 
+static void gst_video_decoder_push_event_list (GstVideoDecoder * decoder,
+    GList * events);
 static GstClockTime gst_video_decoder_get_frame_duration (GstVideoDecoder *
     decoder, GstVideoCodecFrame * frame);
 static GstVideoCodecFrame *gst_video_decoder_new_frame (GstVideoDecoder *
@@ -899,6 +921,32 @@ gst_video_decoder_flush (GstVideoDecoder * dec, gboolean hard)
   return ret;
 }
 
+static GstEvent *
+gst_video_decoder_create_merged_tags_event (GstVideoDecoder * dec)
+{
+  GstTagList *merged_tags;
+
+  GST_LOG_OBJECT (dec, "upstream : %" GST_PTR_FORMAT, dec->priv->upstream_tags);
+  GST_LOG_OBJECT (dec, "decoder  : %" GST_PTR_FORMAT, dec->priv->tags);
+  GST_LOG_OBJECT (dec, "mode     : %d", dec->priv->tags_merge_mode);
+
+  merged_tags =
+      gst_tag_list_merge (dec->priv->upstream_tags, dec->priv->tags,
+      dec->priv->tags_merge_mode);
+
+  GST_DEBUG_OBJECT (dec, "merged   : %" GST_PTR_FORMAT, merged_tags);
+
+  if (merged_tags == NULL)
+    return NULL;
+
+  if (gst_tag_list_is_empty (merged_tags)) {
+    gst_tag_list_unref (merged_tags);
+    return NULL;
+  }
+
+  return gst_event_new_tag (merged_tags);
+}
+
 static gboolean
 gst_video_decoder_push_event (GstVideoDecoder * decoder, GstEvent * event)
 {
@@ -1150,11 +1198,12 @@ gst_video_decoder_sink_event_default (GstVideoDecoder * decoder,
 
       GST_DEBUG_OBJECT (decoder, "received STREAM_START. Clearing taglist");
       GST_VIDEO_DECODER_STREAM_LOCK (decoder);
-      /* Flush our merged taglist after a STREAM_START */
-      if (priv->tags)
-        gst_tag_list_unref (priv->tags);
-      priv->tags = NULL;
-      priv->tags_changed = FALSE;
+      /* Flush upstream tags after a STREAM_START */
+      if (priv->upstream_tags) {
+        gst_tag_list_unref (priv->upstream_tags);
+        priv->upstream_tags = NULL;
+        priv->tags_changed = TRUE;
+      }
       GST_VIDEO_DECODER_STREAM_UNLOCK (decoder);
 
       /* Forward STREAM_START immediately. Everything is drained after
@@ -1222,6 +1271,8 @@ gst_video_decoder_sink_event_default (GstVideoDecoder * decoder,
     {
       GstFlowReturn flow_ret = GST_FLOW_OK;
       gboolean needs_reconfigure = FALSE;
+      GList *events;
+      GList *frame_events;
 
       flow_ret = gst_video_decoder_drain_out (decoder, FALSE);
       ret = (flow_ret == GST_FLOW_OK);
@@ -1247,7 +1298,18 @@ gst_video_decoder_sink_event_default (GstVideoDecoder * decoder,
           gst_pad_mark_reconfigure (decoder->srcpad);
         }
       }
+
+      GST_DEBUG_OBJECT (decoder, "Pushing all pending serialized events"
+          " before the gap");
+      events = decoder->priv->pending_events;
+      frame_events = decoder->priv->current_frame_events;
+      decoder->priv->pending_events = NULL;
+      decoder->priv->current_frame_events = NULL;
+
       GST_VIDEO_DECODER_STREAM_UNLOCK (decoder);
+
+      gst_video_decoder_push_event_list (decoder, events);
+      gst_video_decoder_push_event_list (decoder, frame_events);
 
       /* Forward GAP immediately. Everything is drained after
        * the GAP event and we can forward this event immediately
@@ -1353,10 +1415,18 @@ gst_video_decoder_sink_event_default (GstVideoDecoder * decoder,
       gst_event_parse_tag (event, &tags);
 
       if (gst_tag_list_get_scope (tags) == GST_TAG_SCOPE_STREAM) {
-        gst_video_decoder_merge_tags (decoder, tags, GST_TAG_MERGE_REPLACE);
+        GST_VIDEO_DECODER_STREAM_LOCK (decoder);
+        if (priv->upstream_tags != tags) {
+          if (priv->upstream_tags)
+            gst_tag_list_unref (priv->upstream_tags);
+          priv->upstream_tags = gst_tag_list_ref (tags);
+          GST_INFO_OBJECT (decoder, "upstream tags: %" GST_PTR_FORMAT, tags);
+        }
         gst_event_unref (event);
-        event = NULL;
-        ret = TRUE;
+        event = gst_video_decoder_create_merged_tags_event (decoder);
+        GST_VIDEO_DECODER_STREAM_UNLOCK (decoder);
+        if (!event)
+          ret = TRUE;
       }
       break;
     }
@@ -1826,28 +1896,34 @@ gst_video_decoder_sink_query_default (GstVideoDecoder * decoder,
       break;
     }
     case GST_QUERY_ACCEPT_CAPS:{
-      GstCaps *caps;
-      GstCaps *allowed_caps;
-      GstCaps *template_caps;
-      gboolean accept;
+      if (decoder->priv->use_default_pad_acceptcaps) {
+        res =
+            gst_pad_query_default (GST_VIDEO_DECODER_SINK_PAD (decoder),
+            GST_OBJECT_CAST (decoder), query);
+      } else {
+        GstCaps *caps;
+        GstCaps *allowed_caps;
+        GstCaps *template_caps;
+        gboolean accept;
 
-      gst_query_parse_accept_caps (query, &caps);
+        gst_query_parse_accept_caps (query, &caps);
 
-      template_caps = gst_pad_get_pad_template_caps (pad);
-      accept = gst_caps_is_subset (caps, template_caps);
-      gst_caps_unref (template_caps);
+        template_caps = gst_pad_get_pad_template_caps (pad);
+        accept = gst_caps_is_subset (caps, template_caps);
+        gst_caps_unref (template_caps);
 
-      if (accept) {
-        allowed_caps = gst_pad_query_caps (GST_VIDEO_DECODER_SINK_PAD (decoder),
-            caps);
+        if (accept) {
+          allowed_caps =
+              gst_pad_query_caps (GST_VIDEO_DECODER_SINK_PAD (decoder), caps);
 
-        accept = gst_caps_can_intersect (caps, allowed_caps);
+          accept = gst_caps_can_intersect (caps, allowed_caps);
 
-        gst_caps_unref (allowed_caps);
+          gst_caps_unref (allowed_caps);
+        }
+
+        gst_query_set_accept_caps_result (query, accept);
+        res = TRUE;
       }
-
-      gst_query_set_accept_caps_result (query, accept);
-      res = TRUE;
       break;
     }
     default:
@@ -2034,6 +2110,11 @@ gst_video_decoder_reset (GstVideoDecoder * decoder, gboolean full,
     if (priv->tags)
       gst_tag_list_unref (priv->tags);
     priv->tags = NULL;
+    priv->tags_merge_mode = GST_TAG_MERGE_APPEND;
+    if (priv->upstream_tags) {
+      gst_tag_list_unref (priv->upstream_tags);
+      priv->upstream_tags = NULL;
+    }
     priv->tags_changed = FALSE;
     priv->reordered_output = FALSE;
 
@@ -2544,6 +2625,19 @@ gst_video_decoder_new_frame (GstVideoDecoder * decoder)
 }
 
 static void
+gst_video_decoder_push_event_list (GstVideoDecoder * decoder, GList * events)
+{
+  GList *l;
+
+  /* events are stored in reverse order */
+  for (l = g_list_last (events); l; l = g_list_previous (l)) {
+    GST_LOG_OBJECT (decoder, "pushing %s event", GST_EVENT_TYPE_NAME (l->data));
+    gst_video_decoder_push_event (decoder, l->data);
+  }
+  g_list_free (events);
+}
+
+static void
 gst_video_decoder_prepare_finish_frame (GstVideoDecoder *
     decoder, GstVideoCodecFrame * frame, gboolean dropping)
 {
@@ -2584,21 +2678,10 @@ gst_video_decoder_prepare_finish_frame (GstVideoDecoder *
     decoder->priv->pending_events =
         g_list_concat (decoder->priv->pending_events, events);
   } else {
-    for (l = g_list_last (decoder->priv->pending_events); l;
-        l = g_list_previous (l)) {
-      GST_LOG_OBJECT (decoder, "pushing %s event",
-          GST_EVENT_TYPE_NAME (l->data));
-      gst_video_decoder_push_event (decoder, l->data);
-    }
-    g_list_free (decoder->priv->pending_events);
+    gst_video_decoder_push_event_list (decoder, decoder->priv->pending_events);
     decoder->priv->pending_events = NULL;
 
-    for (l = g_list_last (events); l; l = g_list_previous (l)) {
-      GST_LOG_OBJECT (decoder, "pushing %s event",
-          GST_EVENT_TYPE_NAME (l->data));
-      gst_video_decoder_push_event (decoder, l->data);
-    }
-    g_list_free (events);
+    gst_video_decoder_push_event_list (decoder, events);
   }
 
   /* Check if the data should not be displayed. For example altref/invisible
@@ -2945,9 +3028,14 @@ gst_video_decoder_finish_frame (GstVideoDecoder * decoder,
   gst_video_decoder_prepare_finish_frame (decoder, frame, FALSE);
   priv->processed++;
 
-  if (priv->tags && priv->tags_changed) {
-    gst_video_decoder_push_event (decoder,
-        gst_event_new_tag (gst_tag_list_ref (priv->tags)));
+  if (priv->tags_changed) {
+    GstEvent *tags_event;
+
+    tags_event = gst_video_decoder_create_merged_tags_event (decoder);
+
+    if (tags_event != NULL)
+      gst_video_decoder_push_event (decoder, tags_event);
+
     priv->tags_changed = FALSE;
   }
 
@@ -4180,11 +4268,13 @@ gst_video_decoder_get_latency (GstVideoDecoder * decoder,
 /**
  * gst_video_decoder_merge_tags:
  * @decoder: a #GstVideoDecoder
- * @tags: a #GstTagList to merge
- * @mode: the #GstTagMergeMode to use
+ * @tags: (allow-none): a #GstTagList to merge, or NULL to unset
+ *     previously-set tags
+ * @mode: the #GstTagMergeMode to use, usually #GST_TAG_MERGE_REPLACE
  *
- * Adds tags to so-called pending tags, which will be processed
- * before pushing out data downstream.
+ * Sets the audio decoder tags and how they should be merged with any
+ * upstream stream tags. This will override any tags previously-set
+ * with gst_audio_decoder_merge_tags().
  *
  * Note that this is provided for convenience, and the subclass is
  * not required to use this and can still do tag handling on its own.
@@ -4195,19 +4285,25 @@ void
 gst_video_decoder_merge_tags (GstVideoDecoder * decoder,
     const GstTagList * tags, GstTagMergeMode mode)
 {
-  GstTagList *otags;
-
   g_return_if_fail (GST_IS_VIDEO_DECODER (decoder));
   g_return_if_fail (tags == NULL || GST_IS_TAG_LIST (tags));
+  g_return_if_fail (tags == NULL || mode != GST_TAG_MERGE_UNDEFINED);
 
   GST_VIDEO_DECODER_STREAM_LOCK (decoder);
-  if (tags)
-    GST_DEBUG_OBJECT (decoder, "merging tags %" GST_PTR_FORMAT, tags);
-  otags = decoder->priv->tags;
-  decoder->priv->tags = gst_tag_list_merge (decoder->priv->tags, tags, mode);
-  if (otags)
-    gst_tag_list_unref (otags);
-  decoder->priv->tags_changed = TRUE;
+  if (decoder->priv->tags != tags) {
+    if (decoder->priv->tags) {
+      gst_tag_list_unref (decoder->priv->tags);
+      decoder->priv->tags = NULL;
+      decoder->priv->tags_merge_mode = GST_TAG_MERGE_APPEND;
+    }
+    if (tags) {
+      decoder->priv->tags = gst_tag_list_ref ((GstTagList *) tags);
+      decoder->priv->tags_merge_mode = mode;
+    }
+
+    GST_DEBUG_OBJECT (decoder, "set decoder tags to %" GST_PTR_FORMAT, tags);
+    decoder->priv->tags_changed = TRUE;
+  }
   GST_VIDEO_DECODER_STREAM_UNLOCK (decoder);
 }
 
@@ -4254,4 +4350,25 @@ gst_video_decoder_get_allocator (GstVideoDecoder * decoder,
 
   if (params)
     *params = decoder->priv->params;
+}
+
+/**
+ * gst_video_decoder_set_use_default_pad_acceptcaps:
+ * @decoder: a #GstVideoDecoder
+ * @use: if the default pad accept-caps query handling should be used
+ *
+ * Lets #GstVideoDecoder sub-classes decide if they want the sink pad
+ * to use the default pad query handler to reply to accept-caps queries.
+ *
+ * By setting this to true it is possible to further customize the default
+ * handler with %GST_PAD_SET_ACCEPT_INTERSECT and
+ * %GST_PAD_SET_ACCEPT_TEMPLATE
+ *
+ * Since: 1.6
+ */
+void
+gst_video_decoder_set_use_default_pad_acceptcaps (GstVideoDecoder * decoder,
+    gboolean use)
+{
+  decoder->priv->use_default_pad_acceptcaps = use;
 }

@@ -391,7 +391,7 @@ play_bus_msg (GstBus * bus, GstMessage * msg, gpointer user_data)
     {
       GstNavigationMessageType mtype = gst_navigation_message_get_type (msg);
       if (mtype == GST_NAVIGATION_MESSAGE_EVENT) {
-        GstEvent *ev;
+        GstEvent *ev = NULL;
 
         if (gst_navigation_message_parse_event (msg, &ev)) {
           GstNavigationEventType e_type = gst_navigation_event_get_type (ev);
@@ -439,6 +439,8 @@ play_bus_msg (GstBus * bus, GstMessage * msg, gpointer user_data)
               break;
           }
         }
+        if (ev)
+          gst_event_unref (ev);
       }
       break;
     }
@@ -639,7 +641,7 @@ add_to_playlist (GPtrArray * playlist, const gchar * filename)
     while ((entry = g_dir_read_name (dir))) {
       gchar *path;
 
-      path = g_strconcat (filename, G_DIR_SEPARATOR_S, entry, NULL);
+      path = g_build_filename (filename, entry, NULL);
       files = g_list_insert_sorted (files, path, compare);
     }
 
@@ -706,7 +708,7 @@ relative_seek (GstPlay * play, gdouble percent)
 {
   GstQuery *query;
   gboolean seekable = FALSE;
-  gint64 dur = -1, pos = -1;
+  gint64 dur = -1, pos = -1, step;
 
   g_return_if_fail (percent >= -1.0 && percent <= 1.0);
 
@@ -725,7 +727,11 @@ relative_seek (GstPlay * play, gdouble percent)
   if (!seekable || dur <= 0)
     goto seek_failed;
 
-  pos = pos + dur * percent;
+  step = dur * percent;
+  if (ABS (step) < GST_SECOND)
+    step = (percent < 0) ? -GST_SECOND : GST_SECOND;
+
+  pos = pos + step;
   if (pos > dur) {
     if (!play_next (play)) {
       g_print ("\n%s\n", _("Reached end of play list."));

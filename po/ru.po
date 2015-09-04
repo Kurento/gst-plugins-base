@@ -6,10 +6,10 @@
 # Yuri Kozlov <yuray@komyakino.ru>, 2010, 2011, 2012, 2013, 2014, 2015.
 msgid ""
 msgstr ""
-"Project-Id-Version: gst-plugins-base 1.5.1\n"
+"Project-Id-Version: gst-plugins-base 1.5.2\n"
 "Report-Msgid-Bugs-To: http://bugzilla.gnome.org/\n"
-"POT-Creation-Date: 2015-06-24 22:47+0200\n"
-"PO-Revision-Date: 2015-06-13 11:57+0300\n"
+"POT-Creation-Date: 2015-08-19 12:37+0300\n"
+"PO-Revision-Date: 2015-06-26 09:00+0300\n"
 "Last-Translator: Yuri Kozlov <yuray@komyakino.ru>\n"
 "Language-Team: Russian <gnu@mx.ru>\n"
 "Language: ru\n"
@@ -533,7 +533,7 @@ msgid "Reached end of play list."
 msgstr "Достигнут конец списка воспроизведения."
 
 msgid "Paused"
-msgstr ""
+msgstr "Пауза"
 
 #, c-format
 msgid "Now playing %s\n"
@@ -593,16 +593,14 @@ msgstr "изменить направление воспроизведения"
 msgid "enable/disable trick modes"
 msgstr "включить/выключить режим рекомендаций"
 
-#, fuzzy
 msgid "change audio track"
-msgstr "На CD нет звуковых дорожек"
+msgstr "изменить звуковую дорожку"
 
 msgid "change video track"
-msgstr ""
+msgstr "изменить видео дорожку"
 
-#, fuzzy
 msgid "change subtitle track"
-msgstr "Формат субтитров Kate"
+msgstr "изменить дорожку субтитров"
 
 msgid "show keyboard shortcuts"
 msgstr "показать клавиатурные сокращения"
