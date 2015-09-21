@@ -215,7 +215,7 @@ gst_app_sink_class_init (GstAppSinkClass * klass)
    * @appsink: the appsink element that emitted the signal
    *
    * Signal that the end-of-stream has been reached. This signal is emitted from
-   * the steaming thread.
+   * the streaming thread.
    */
   gst_app_sink_signals[SIGNAL_EOS] =
       g_signal_new ("eos", G_TYPE_FROM_CLASS (klass), G_SIGNAL_RUN_LAST,
@@ -227,7 +227,7 @@ gst_app_sink_class_init (GstAppSinkClass * klass)
    *
    * Signal that a new preroll sample is available.
    *
-   * This signal is emitted from the steaming thread and only when the
+   * This signal is emitted from the streaming thread and only when the
    * "emit-signals" property is %TRUE.
    *
    * The new preroll sample can be retrieved with the "pull-preroll" action
@@ -248,7 +248,7 @@ gst_app_sink_class_init (GstAppSinkClass * klass)
    *
    * Signal that a new sample is available.
    *
-   * This signal is emitted from the steaming thread and only when the
+   * This signal is emitted from the streaming thread and only when the
    * "emit-signals" property is %TRUE.
    *
    * The new sample can be retrieved with the "pull-sample" action
@@ -844,8 +844,8 @@ gst_app_sink_query (GstBaseSink * bsink, GstQuery * query)
  *
  * Set the capabilities on the appsink element.  This function takes
  * a copy of the caps structure. After calling this method, the sink will only
- * accept caps that match @caps. If @caps is non-fixed, you must check the caps
- * on the buffers to get the actual used caps.
+ * accept caps that match @caps. If @caps is non-fixed, or incomplete,
+ * you must check the caps on the samples to get the actual used caps.
  */
 void
 gst_app_sink_set_caps (GstAppSink * appsink, const GstCaps * caps)
