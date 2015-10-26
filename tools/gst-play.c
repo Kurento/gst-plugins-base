@@ -352,7 +352,7 @@ play_bus_msg (GstBus * bus, GstMessage * msg, gpointer user_data)
       g_printerr ("WARNING %s\n", err->message);
       if (dbg != NULL)
         g_printerr ("WARNING debug information: %s\n", dbg);
-      g_error_free (err);
+      g_clear_error (&err);
       g_free (dbg);
       break;
     }
@@ -368,7 +368,7 @@ play_bus_msg (GstBus * bus, GstMessage * msg, gpointer user_data)
       g_printerr ("ERROR %s for %s\n", err->message, play->uris[play->cur_idx]);
       if (dbg != NULL)
         g_printerr ("ERROR debug information: %s\n", dbg);
-      g_error_free (err);
+      g_clear_error (&err);
       g_free (dbg);
 
       /* flush any other error messages from the bus and clean up */
@@ -973,6 +973,7 @@ print_keyboard_help (void)
     "a", N_("change audio track")}, {
     "v", N_("change video track")}, {
     "s", N_("change subtitle track")}, {
+    "0", N_("seek to beginning")}, {
   "k", N_("show keyboard shortcuts")},};
   guint i, chars_to_pad, desc_len, max_desc_len = 0;
 
@@ -1063,7 +1064,9 @@ keyboard_cb (const gchar * key_input, gpointer user_data)
     case 's':
       play_cycle_track_selection (play, GST_PLAY_TRACK_TYPE_SUBTITLE);
       break;
-      /* fall through */
+    case '0':
+      play_do_seek (play, 0, play->rate, play->trick_mode);
+      break;
     default:
       if (strcmp (key_input, GST_PLAY_KB_ARROW_RIGHT) == 0) {
         relative_seek (play, +0.08);
@@ -1139,6 +1142,8 @@ main (int argc, char **argv)
   g_option_context_add_group (ctx, gst_init_get_option_group ());
   if (!g_option_context_parse (ctx, &argc, &argv, &err)) {
     g_print ("Error initializing: %s\n", GST_STR_NULL (err->message));
+    g_option_context_free (ctx);
+    g_clear_error (&err);
     return 1;
   }
   g_option_context_free (ctx);

@@ -625,6 +625,8 @@ static void gst_play_bin_handle_message (GstBin * bin, GstMessage * message);
 static gboolean gst_play_bin_query (GstElement * element, GstQuery * query);
 static void gst_play_bin_set_context (GstElement * element,
     GstContext * context);
+static gboolean gst_play_bin_send_event (GstElement * element,
+    GstEvent * event);
 
 static GstTagList *gst_play_bin_get_video_tags (GstPlayBin * playbin,
     gint stream);
@@ -1315,6 +1317,7 @@ gst_play_bin_class_init (GstPlayBinClass * klass)
       GST_DEBUG_FUNCPTR (gst_play_bin_change_state);
   gstelement_klass->query = GST_DEBUG_FUNCPTR (gst_play_bin_query);
   gstelement_klass->set_context = GST_DEBUG_FUNCPTR (gst_play_bin_set_context);
+  gstelement_klass->send_event = GST_DEBUG_FUNCPTR (gst_play_bin_send_event);
 
   gstbin_klass->handle_message =
       GST_DEBUG_FUNCPTR (gst_play_bin_handle_message);
@@ -4242,6 +4245,27 @@ autoplug_factories_cb (GstElement * decodebin, GstPad * pad,
   return result;
 }
 
+static gboolean
+gst_play_bin_send_event (GstElement * element, GstEvent * event)
+{
+  GstPlayBin *playbin = GST_PLAY_BIN (element);
+
+  /* Send event directly to playsink instead of letting GstBin iterate
+   * over all sink elements. The latter might send the event multiple times
+   * in case the SEEK causes a reconfiguration of the pipeline, as can easily
+   * happen with adaptive streaming demuxers.
+   *
+   * What would then happen is that the iterator would be reset, we send the
+   * event again, and on the second time it will fail in the majority of cases
+   * because the pipeline is still being reconfigured
+   */
+  if (GST_EVENT_IS_UPSTREAM (event)) {
+    return gst_element_send_event (GST_ELEMENT_CAST (playbin->playsink), event);
+  }
+
+  return GST_ELEMENT_CLASS (parent_class)->send_event (element, event);
+}
+
 static void
 gst_play_bin_set_context (GstElement * element, GstContext * context)
 {
@@ -5774,11 +5798,16 @@ gst_play_bin_change_state (GstElement * element, GstStateChange transition)
       break;
   }
 
+  if (ret == GST_STATE_CHANGE_NO_PREROLL)
+    do_async_done (playbin);
+
   return ret;
 
   /* ERRORS */
 failure:
   {
+    do_async_done (playbin);
+
     if (transition == GST_STATE_CHANGE_READY_TO_PAUSED) {
       GstSourceGroup *curr_group;
 

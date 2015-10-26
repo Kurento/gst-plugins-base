@@ -3472,6 +3472,8 @@ gst_play_sink_do_reconfigure (GstPlaySink * playsink)
 
         activate_chain (GST_PLAY_CHAIN (playsink->audiochain), FALSE);
         disconnect_audio_chain (playsink->audiochain, playsink);
+        if (playsink->audiochain->volume)
+          gst_object_unref (playsink->audiochain->volume);
         playsink->audiochain->volume = NULL;
         if (playsink->audiochain->ts_offset)
           gst_object_unref (playsink->audiochain->ts_offset);
@@ -3580,6 +3582,8 @@ gst_play_sink_do_reconfigure (GstPlaySink * playsink)
 
       if (playsink->audiochain->sink_volume) {
         disconnect_audio_chain (playsink->audiochain, playsink);
+        if (playsink->audiochain->volume)
+          gst_object_unref (playsink->audiochain->volume);
         playsink->audiochain->volume = NULL;
         if (playsink->audiochain->ts_offset)
           gst_object_unref (playsink->audiochain->ts_offset);
@@ -3696,12 +3700,12 @@ gst_play_sink_do_reconfigure (GstPlaySink * playsink)
         g_value_unset (&item);
         g_assert (playsink->text_srcpad_stream_synchronizer);
         gst_iterator_free (it);
-
-        gst_ghost_pad_set_target (GST_GHOST_PAD_CAST (playsink->text_pad),
-            playsink->text_sinkpad_stream_synchronizer);
-        gst_pad_link_full (playsink->text_srcpad_stream_synchronizer,
-            playsink->textchain->textsinkpad, GST_PAD_LINK_CHECK_NOTHING);
       }
+
+      gst_ghost_pad_set_target (GST_GHOST_PAD_CAST (playsink->text_pad),
+          playsink->text_sinkpad_stream_synchronizer);
+      gst_pad_link_full (playsink->text_srcpad_stream_synchronizer,
+          playsink->textchain->textsinkpad, GST_PAD_LINK_CHECK_NOTHING);
 
       if (need_vis || need_video) {
         if (need_vis) {
@@ -4765,8 +4769,10 @@ gst_play_sink_change_state (GstElement * element, GstStateChange transition)
       ret = GST_STATE_CHANGE_ASYNC;
 
       /* block all pads here */
-      if (!gst_play_sink_reconfigure (playsink))
+      if (!gst_play_sink_reconfigure (playsink)) {
         ret = GST_STATE_CHANGE_FAILURE;
+        goto activate_failed;
+      }
       break;
     case GST_STATE_CHANGE_PAUSED_TO_READY:
       /* unblock all pads here */
@@ -4786,6 +4792,8 @@ gst_play_sink_change_state (GstElement * element, GstStateChange transition)
         /* remove our links to the volume elements when they were
          * provided by a sink */
         disconnect_audio_chain (playsink->audiochain, playsink);
+        if (playsink->audiochain->volume)
+          gst_object_unref (playsink->audiochain->volume);
         playsink->audiochain->volume = NULL;
       }
 
@@ -4953,6 +4961,7 @@ activate_failed:
   {
     GST_DEBUG_OBJECT (element,
         "element failed to change states -- activation problem?");
+    do_async_done (playsink);
     return GST_STATE_CHANGE_FAILURE;
   }
 }
