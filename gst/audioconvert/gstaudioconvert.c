@@ -63,12 +63,11 @@
 #include <string.h>
 
 #include "gstaudioconvert.h"
-#include "gstchannelmix.h"
-#include "gstaudioquantize.h"
 #include "plugin.h"
 
 GST_DEBUG_CATEGORY (audio_convert_debug);
 GST_DEBUG_CATEGORY_STATIC (GST_CAT_PERFORMANCE);
+#define GST_CAT_DEFAULT (audio_convert_debug)
 
 /*** DEFINITIONS **************************************************************/
 
@@ -88,6 +87,8 @@ static GstFlowReturn gst_audio_convert_transform (GstBaseTransform * base,
     GstBuffer * inbuf, GstBuffer * outbuf);
 static gboolean gst_audio_convert_transform_meta (GstBaseTransform * trans,
     GstBuffer * outbuf, GstMeta * meta, GstBuffer * inbuf);
+static GstFlowReturn gst_audio_convert_submit_input_buffer (GstBaseTransform *
+    base, gboolean is_discont, GstBuffer * input);
 static void gst_audio_convert_set_property (GObject * object, guint prop_id,
     const GValue * value, GParamSpec * pspec);
 static void gst_audio_convert_get_property (GObject * object, guint prop_id,
@@ -132,49 +133,6 @@ GST_STATIC_PAD_TEMPLATE ("sink",
     GST_PAD_ALWAYS,
     STATIC_CAPS);
 
-#define GST_TYPE_AUDIO_CONVERT_DITHERING (gst_audio_convert_dithering_get_type ())
-static GType
-gst_audio_convert_dithering_get_type (void)
-{
-  static GType gtype = 0;
-
-  if (gtype == 0) {
-    static const GEnumValue values[] = {
-      {DITHER_NONE, "No dithering",
-          "none"},
-      {DITHER_RPDF, "Rectangular dithering", "rpdf"},
-      {DITHER_TPDF, "Triangular dithering (default)", "tpdf"},
-      {DITHER_TPDF_HF, "High frequency triangular dithering", "tpdf-hf"},
-      {0, NULL, NULL}
-    };
-
-    gtype = g_enum_register_static ("GstAudioConvertDithering", values);
-  }
-  return gtype;
-}
-
-#define GST_TYPE_AUDIO_CONVERT_NOISE_SHAPING (gst_audio_convert_ns_get_type ())
-static GType
-gst_audio_convert_ns_get_type (void)
-{
-  static GType gtype = 0;
-
-  if (gtype == 0) {
-    static const GEnumValue values[] = {
-      {NOISE_SHAPING_NONE, "No noise shaping (default)",
-          "none"},
-      {NOISE_SHAPING_ERROR_FEEDBACK, "Error feedback", "error-feedback"},
-      {NOISE_SHAPING_SIMPLE, "Simple 2-pole noise shaping", "simple"},
-      {NOISE_SHAPING_MEDIUM, "Medium 5-pole noise shaping", "medium"},
-      {NOISE_SHAPING_HIGH, "High 8-pole noise shaping", "high"},
-      {0, NULL, NULL}
-    };
-
-    gtype = g_enum_register_static ("GstAudioConvertNoiseShaping", values);
-  }
-  return gtype;
-}
-
 
 /*** TYPE FUNCTIONS ***********************************************************/
 static void
@@ -191,13 +149,13 @@ gst_audio_convert_class_init (GstAudioConvertClass * klass)
   g_object_class_install_property (gobject_class, PROP_DITHERING,
       g_param_spec_enum ("dithering", "Dithering",
           "Selects between different dithering methods.",
-          GST_TYPE_AUDIO_CONVERT_DITHERING, DITHER_TPDF,
+          GST_TYPE_AUDIO_DITHER_METHOD, GST_AUDIO_DITHER_TPDF,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   g_object_class_install_property (gobject_class, PROP_NOISE_SHAPING,
       g_param_spec_enum ("noise-shaping", "Noise shaping",
           "Selects between different noise shaping methods.",
-          GST_TYPE_AUDIO_CONVERT_NOISE_SHAPING, NOISE_SHAPING_NONE,
+          GST_TYPE_AUDIO_NOISE_SHAPING_METHOD, GST_AUDIO_NOISE_SHAPING_NONE,
           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
   gst_element_class_add_pad_template (element_class,
@@ -220,6 +178,8 @@ gst_audio_convert_class_init (GstAudioConvertClass * klass)
       GST_DEBUG_FUNCPTR (gst_audio_convert_transform);
   basetransform_class->transform_meta =
       GST_DEBUG_FUNCPTR (gst_audio_convert_transform_meta);
+  basetransform_class->submit_input_buffer =
+      GST_DEBUG_FUNCPTR (gst_audio_convert_submit_input_buffer);
 
   basetransform_class->passthrough_on_same_caps = TRUE;
 }
@@ -227,9 +187,8 @@ gst_audio_convert_class_init (GstAudioConvertClass * klass)
 static void
 gst_audio_convert_init (GstAudioConvert * this)
 {
-  this->dither = DITHER_TPDF;
-  this->ns = NOISE_SHAPING_NONE;
-  memset (&this->ctx, 0, sizeof (AudioConvertCtx));
+  this->dither = GST_AUDIO_DITHER_TPDF;
+  this->ns = GST_AUDIO_NOISE_SHAPING_NONE;
 
   gst_base_transform_set_gap_aware (GST_BASE_TRANSFORM (this), TRUE);
 }
@@ -239,7 +198,8 @@ gst_audio_convert_dispose (GObject * obj)
 {
   GstAudioConvert *this = GST_AUDIO_CONVERT (obj);
 
-  audio_convert_clean_context (&this->ctx);
+  if (this->convert)
+    gst_audio_converter_free (this->convert);
 
   G_OBJECT_CLASS (parent_class)->dispose (obj);
 }
@@ -339,69 +299,6 @@ gst_audio_convert_transform_caps (GstBaseTransform * btrans,
 
   return result;
 }
-
-static const GstAudioChannelPosition default_positions[8][8] = {
-  /* 1 channel */
-  {
-        GST_AUDIO_CHANNEL_POSITION_MONO,
-      },
-  /* 2 channels */
-  {
-        GST_AUDIO_CHANNEL_POSITION_FRONT_LEFT,
-        GST_AUDIO_CHANNEL_POSITION_FRONT_RIGHT,
-      },
-  /* 3 channels (2.1) */
-  {
-        GST_AUDIO_CHANNEL_POSITION_FRONT_LEFT,
-        GST_AUDIO_CHANNEL_POSITION_FRONT_RIGHT,
-        GST_AUDIO_CHANNEL_POSITION_LFE1,
-      },
-  /* 4 channels (4.0) */
-  {
-        GST_AUDIO_CHANNEL_POSITION_FRONT_LEFT,
-        GST_AUDIO_CHANNEL_POSITION_FRONT_RIGHT,
-        GST_AUDIO_CHANNEL_POSITION_REAR_LEFT,
-        GST_AUDIO_CHANNEL_POSITION_REAR_RIGHT,
-      },
-  /* 5 channels */
-  {
-        GST_AUDIO_CHANNEL_POSITION_FRONT_LEFT,
-        GST_AUDIO_CHANNEL_POSITION_FRONT_RIGHT,
-        GST_AUDIO_CHANNEL_POSITION_REAR_LEFT,
-        GST_AUDIO_CHANNEL_POSITION_REAR_RIGHT,
-        GST_AUDIO_CHANNEL_POSITION_FRONT_CENTER,
-      },
-  /* 6 channels (5.1) */
-  {
-        GST_AUDIO_CHANNEL_POSITION_FRONT_LEFT,
-        GST_AUDIO_CHANNEL_POSITION_FRONT_RIGHT,
-        GST_AUDIO_CHANNEL_POSITION_REAR_LEFT,
-        GST_AUDIO_CHANNEL_POSITION_REAR_RIGHT,
-        GST_AUDIO_CHANNEL_POSITION_FRONT_CENTER,
-        GST_AUDIO_CHANNEL_POSITION_LFE1,
-      },
-  /* 7 channels (6.1) */
-  {
-        GST_AUDIO_CHANNEL_POSITION_FRONT_LEFT,
-        GST_AUDIO_CHANNEL_POSITION_FRONT_RIGHT,
-        GST_AUDIO_CHANNEL_POSITION_REAR_LEFT,
-        GST_AUDIO_CHANNEL_POSITION_REAR_RIGHT,
-        GST_AUDIO_CHANNEL_POSITION_FRONT_CENTER,
-        GST_AUDIO_CHANNEL_POSITION_LFE1,
-        GST_AUDIO_CHANNEL_POSITION_REAR_CENTER,
-      },
-  /* 8 channels (7.1) */
-  {
-        GST_AUDIO_CHANNEL_POSITION_FRONT_LEFT,
-        GST_AUDIO_CHANNEL_POSITION_FRONT_RIGHT,
-        GST_AUDIO_CHANNEL_POSITION_REAR_LEFT,
-        GST_AUDIO_CHANNEL_POSITION_REAR_RIGHT,
-        GST_AUDIO_CHANNEL_POSITION_FRONT_CENTER,
-        GST_AUDIO_CHANNEL_POSITION_LFE1,
-        GST_AUDIO_CHANNEL_POSITION_SIDE_LEFT,
-        GST_AUDIO_CHANNEL_POSITION_SIDE_RIGHT,
-      }
-};
 
 static gint
 n_bits_set (guint64 x)
@@ -677,15 +574,9 @@ gst_audio_convert_fixate_channels (GstBaseTransform * base, GstStructure * ins,
    * and try to add/remove channels from the input layout, or pick a default
    * layout based on LFE-presence in input layout, but let's save that for
    * another day) */
-  if (out_chans > 0 && out_chans <= G_N_ELEMENTS (default_positions[0])) {
-    gint i;
-
+  if (out_chans > 0
+      && (out_mask = gst_audio_channel_get_fallback_mask (out_chans))) {
     GST_DEBUG_OBJECT (base, "using default channel layout as fallback");
-
-    out_mask = 0;
-    for (i = 0; i < out_chans; i++)
-      out_mask |= G_GUINT64_CONSTANT (1) << default_positions[out_chans - 1][i];
-
     gst_structure_set (outs, "channel-mask", GST_TYPE_BITMASK, out_mask, NULL);
   } else {
     GST_ERROR_OBJECT (base, "Have no default layout for %d channels",
@@ -757,14 +648,28 @@ gst_audio_convert_set_caps (GstBaseTransform * base, GstCaps * incaps,
   GST_DEBUG_OBJECT (base, "incaps %" GST_PTR_FORMAT ", outcaps %"
       GST_PTR_FORMAT, incaps, outcaps);
 
+  if (this->convert) {
+    gst_audio_converter_free (this->convert);
+    this->convert = NULL;
+  }
+
   if (!gst_audio_info_from_caps (&in_info, incaps))
     goto invalid_in;
   if (!gst_audio_info_from_caps (&out_info, outcaps))
     goto invalid_out;
 
-  if (!audio_convert_prepare_context (&this->ctx, &in_info, &out_info,
-          this->dither, this->ns))
+  this->convert = gst_audio_converter_new (&in_info, &out_info,
+      gst_structure_new ("GstAudioConverterConfig",
+          GST_AUDIO_CONVERTER_OPT_DITHER_METHOD, GST_TYPE_AUDIO_DITHER_METHOD,
+          this->dither,
+          GST_AUDIO_CONVERTER_OPT_NOISE_SHAPING_METHOD,
+          GST_TYPE_AUDIO_NOISE_SHAPING_METHOD, this->ns, NULL));
+
+  if (this->convert == NULL)
     goto no_converter;
+
+  this->in_info = in_info;
+  this->out_info = out_info;
 
   return TRUE;
 
@@ -781,7 +686,7 @@ invalid_out:
   }
 no_converter:
   {
-    GST_ERROR_OBJECT (base, "could not find converter");
+    GST_ERROR_OBJECT (base, "could not make converter");
     return FALSE;
   }
 }
@@ -795,16 +700,16 @@ gst_audio_convert_transform (GstBaseTransform * base, GstBuffer * inbuf,
   GstMapInfo srcmap, dstmap;
   gint insize, outsize;
   gboolean inbuf_writable;
-
-  gint samples;
+  GstAudioConverterFlags flags;
+  gsize samples, out;
 
   /* get amount of samples to convert. */
-  samples = gst_buffer_get_size (inbuf) / this->ctx.in.bpf;
+  samples = gst_buffer_get_size (inbuf) / this->in_info.bpf;
 
   /* get in/output sizes, to see if the buffers we got are of correct
    * sizes */
-  if (!audio_convert_get_sizes (&this->ctx, samples, &insize, &outsize))
-    goto error;
+  insize = samples * this->in_info.bpf;
+  outsize = samples * this->out_info.bpf;
 
   if (insize == 0 || outsize == 0)
     return GST_FLOW_OK;
@@ -825,13 +730,17 @@ gst_audio_convert_transform (GstBaseTransform * base, GstBuffer * inbuf,
     goto wrong_size;
 
   /* and convert the samples */
+  flags = 0;
+  if (inbuf_writable)
+    flags |= GST_AUDIO_CONVERTER_FLAG_SOURCE_WRITABLE;
+
   if (!GST_BUFFER_FLAG_IS_SET (inbuf, GST_BUFFER_FLAG_GAP)) {
-    if (!audio_convert_convert (&this->ctx, srcmap.data, dstmap.data,
-            samples, inbuf_writable))
+    if (!gst_audio_converter_samples (this->convert, flags, srcmap.data,
+            dstmap.data, samples, &out))
       goto convert_error;
   } else {
     /* Create silence buffer */
-    gst_audio_format_fill_silence (this->ctx.out.finfo, dstmap.data, outsize);
+    gst_audio_format_fill_silence (this->out_info.finfo, dstmap.data, outsize);
   }
   ret = GST_FLOW_OK;
 
@@ -842,12 +751,6 @@ done:
   return ret;
 
   /* ERRORS */
-error:
-  {
-    GST_ELEMENT_ERROR (this, STREAM, FORMAT,
-        (NULL), ("cannot get input/output sizes for %d samples", samples));
-    return GST_FLOW_ERROR;
-  }
 wrong_size:
   {
     GST_ELEMENT_ERROR (this, STREAM, FORMAT,
@@ -882,6 +785,25 @@ gst_audio_convert_transform_meta (GstBaseTransform * trans, GstBuffer * outbuf,
     return TRUE;
 
   return FALSE;
+}
+
+static GstFlowReturn
+gst_audio_convert_submit_input_buffer (GstBaseTransform * base,
+    gboolean is_discont, GstBuffer * input)
+{
+  GstAudioConvert *this = GST_AUDIO_CONVERT (base);
+
+  if (base->segment.format == GST_FORMAT_TIME) {
+    input =
+        gst_audio_buffer_clip (input, &base->segment, this->in_info.rate,
+        this->in_info.bpf);
+
+    if (!input)
+      return GST_FLOW_OK;
+  }
+
+  return GST_BASE_TRANSFORM_CLASS (parent_class)->submit_input_buffer (base,
+      is_discont, input);
 }
 
 static void

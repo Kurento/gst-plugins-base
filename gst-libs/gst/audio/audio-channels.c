@@ -31,6 +31,29 @@
 
 #include "audio-channels.h"
 
+#ifndef GST_DISABLE_GST_DEBUG
+#define GST_CAT_DEFAULT ensure_debug_category()
+static GstDebugCategory *
+ensure_debug_category (void)
+{
+  static gsize cat_gonce = 0;
+
+  if (g_once_init_enter (&cat_gonce)) {
+    gsize cat_done;
+
+    cat_done = (gsize) _gst_debug_category_new ("audio-channels", 0,
+        "audio-channels object");
+
+    g_once_init_leave (&cat_gonce, cat_done);
+  }
+
+  return (GstDebugCategory *) cat_gonce;
+}
+#else
+#define ensure_debug_category() /* NOOP */
+#endif /* GST_DISABLE_GST_DEBUG */
+
+
 static const GstAudioChannelPosition default_channel_order[64] = {
   GST_AUDIO_CHANNEL_POSITION_FRONT_LEFT,
   GST_AUDIO_CHANNEL_POSITION_FRONT_RIGHT,
@@ -458,4 +481,60 @@ gst_audio_channel_positions_to_valid_order (GstAudioChannelPosition * position,
   memcpy (position, tmp, sizeof (tmp[0]) * channels);
 
   return TRUE;
+}
+
+#define _P(pos) (G_GUINT64_CONSTANT (1) << GST_AUDIO_CHANNEL_POSITION_ ##pos)
+
+static const guint64 default_masks[] = {
+  /* 1 channel */
+  0,
+  /* 2 channels */
+  _P (FRONT_LEFT) | _P (FRONT_RIGHT),
+  /* 3 channels (2.1) */
+  _P (FRONT_LEFT) | _P (FRONT_RIGHT) | _P (LFE1),
+  /* 4 channels (4.0) */
+  _P (FRONT_LEFT) | _P (FRONT_RIGHT) | _P (REAR_LEFT) | _P (REAR_RIGHT),
+  /* 5 channels */
+  _P (FRONT_LEFT) | _P (FRONT_RIGHT) | _P (REAR_LEFT) | _P (REAR_RIGHT)
+      | _P (FRONT_CENTER),
+  /* 6 channels (5.1) */
+  _P (FRONT_LEFT) |
+      _P (FRONT_RIGHT) |
+      _P (REAR_LEFT) | _P (REAR_RIGHT) | _P (FRONT_CENTER) | _P (LFE1),
+  /* 7 channels (6.1) */
+  _P (FRONT_LEFT) |
+      _P (FRONT_RIGHT) |
+      _P (REAR_LEFT) |
+      _P (REAR_RIGHT) | _P (FRONT_CENTER) | _P (LFE1) | _P (REAR_CENTER),
+  /* 8 channels (7.1) */
+  _P (FRONT_LEFT) |
+      _P (FRONT_RIGHT) |
+      _P (REAR_LEFT) |
+      _P (REAR_RIGHT) |
+      _P (FRONT_CENTER) | _P (LFE1) | _P (SIDE_LEFT) | _P (SIDE_RIGHT),
+};
+
+/**
+ * gst_audio_channel_get_fallback_mask:
+ * @channels: the number of channels
+ *
+ * Get the fallback channel-mask for the given number of channels.
+ *
+ * This function returns a reasonable fallback channel-mask and should be
+ * called as a last resort when the specific channel map is unknown.
+ *
+ * Returns: a fallback channel-mask for @channels or 0 when there is no
+ * mask.
+ *
+ * Since: 1.8
+ */
+guint64
+gst_audio_channel_get_fallback_mask (gint channels)
+{
+  g_return_val_if_fail (channels > 0, 0);
+
+  if (channels > 8)
+    return 0;
+
+  return default_masks[channels - 1];
 }

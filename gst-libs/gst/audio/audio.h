@@ -26,7 +26,10 @@
 #include <gst/audio/audio-enumtypes.h>
 #include <gst/audio/audio-format.h>
 #include <gst/audio/audio-channels.h>
+#include <gst/audio/audio-channel-mix.h>
 #include <gst/audio/audio-info.h>
+#include <gst/audio/audio-quantize.h>
+#include <gst/audio/audio-converter.h>
 
 G_BEGIN_DECLS
 
@@ -69,6 +72,15 @@ G_BEGIN_DECLS
  * Since: 1.2
  */
 #define GST_META_TAG_AUDIO_CHANNELS_STR "channels"
+
+/**
+ * GST_META_TAG_AUDIO_RATE_STR:
+ *
+ * This metadata stays relevant as long as sample rate is unchanged.
+ *
+ * Since: 1.8
+ */
+#define GST_META_TAG_AUDIO_RATE_STR "rate"
 
 /*
  * this library defines and implements some helper functions for audio

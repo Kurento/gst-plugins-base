@@ -81,11 +81,17 @@ typedef union { orc_int64 i; double f; orc_int32 x2[2]; float x2f[2]; orc_int16 
 #endif
 
 void audio_orc_unpack_u8 (gint32 * ORC_RESTRICT d1, const guint8 * ORC_RESTRICT s1, int n);
+void audio_orc_unpack_u8_trunc (gint32 * ORC_RESTRICT d1, const guint8 * ORC_RESTRICT s1, int n);
 void audio_orc_unpack_s8 (gint32 * ORC_RESTRICT d1, const guint8 * ORC_RESTRICT s1, int n);
+void audio_orc_unpack_s8_trunc (gint32 * ORC_RESTRICT d1, const guint8 * ORC_RESTRICT s1, int n);
 void audio_orc_unpack_u16 (gint32 * ORC_RESTRICT d1, const guint8 * ORC_RESTRICT s1, int n);
+void audio_orc_unpack_u16_trunc (gint32 * ORC_RESTRICT d1, const guint8 * ORC_RESTRICT s1, int n);
 void audio_orc_unpack_s16 (gint32 * ORC_RESTRICT d1, const guint8 * ORC_RESTRICT s1, int n);
+void audio_orc_unpack_s16_trunc (gint32 * ORC_RESTRICT d1, const guint8 * ORC_RESTRICT s1, int n);
 void audio_orc_unpack_u16_swap (gint32 * ORC_RESTRICT d1, const guint8 * ORC_RESTRICT s1, int n);
+void audio_orc_unpack_u16_swap_trunc (gint32 * ORC_RESTRICT d1, const guint8 * ORC_RESTRICT s1, int n);
 void audio_orc_unpack_s16_swap (gint32 * ORC_RESTRICT d1, const guint8 * ORC_RESTRICT s1, int n);
+void audio_orc_unpack_s16_swap_trunc (gint32 * ORC_RESTRICT d1, const guint8 * ORC_RESTRICT s1, int n);
 void audio_orc_unpack_u24_32 (gint32 * ORC_RESTRICT d1, const guint8 * ORC_RESTRICT s1, int n);
 void audio_orc_unpack_s24_32 (gint32 * ORC_RESTRICT d1, const guint8 * ORC_RESTRICT s1, int n);
 void audio_orc_unpack_u24_32_swap (gint32 * ORC_RESTRICT d1, const guint8 * ORC_RESTRICT s1, int n);
@@ -119,6 +125,11 @@ void audio_orc_pack_f64_swap (gdouble * ORC_RESTRICT d1, const gdouble * ORC_RES
 void audio_orc_splat_u16 (guint16 * ORC_RESTRICT d1, int p1, int n);
 void audio_orc_splat_u32 (guint32 * ORC_RESTRICT d1, int p1, int n);
 void audio_orc_splat_u64 (guint64 * ORC_RESTRICT d1, int p1, int n);
+void audio_orc_int_bias (gint32 * ORC_RESTRICT d1, const gint32 * ORC_RESTRICT s1, int p1, int p2, int n);
+void audio_orc_int_dither (gint32 * ORC_RESTRICT d1, const gint32 * ORC_RESTRICT s1, const gint32 * ORC_RESTRICT s2, int p1, int n);
+void audio_orc_update_rand (guint32 * ORC_RESTRICT d1, int n);
+void audio_orc_s32_to_double (gdouble * ORC_RESTRICT d1, const gint32 * ORC_RESTRICT s1, int n);
+void audio_orc_double_to_s32 (gint32 * ORC_RESTRICT d1, const gdouble * ORC_RESTRICT s1, int n);
 
 #ifdef __cplusplus
 }

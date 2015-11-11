@@ -1630,8 +1630,8 @@ gst_video_decoder_src_event_default (GstVideoDecoder * decoder,
       GST_OBJECT_UNLOCK (decoder);
 
       GST_DEBUG_OBJECT (decoder,
-          "got QoS %" GST_TIME_FORMAT ", %" G_GINT64_FORMAT ", %g",
-          GST_TIME_ARGS (timestamp), diff, proportion);
+          "got QoS %" GST_TIME_FORMAT ", %" GST_STIME_FORMAT ", %g",
+          GST_TIME_ARGS (timestamp), GST_STIME_ARGS (diff), proportion);
 
       res = gst_pad_push_event (decoder->sinkpad, event);
       break;
@@ -2697,9 +2697,10 @@ gst_video_decoder_prepare_finish_frame (GstVideoDecoder *
   if (GST_CLOCK_TIME_IS_VALID (frame->pts)) {
     if (frame->pts != priv->base_timestamp) {
       GST_DEBUG_OBJECT (decoder,
-          "sync timestamp %" GST_TIME_FORMAT " diff %" GST_TIME_FORMAT,
+          "sync timestamp %" GST_TIME_FORMAT " diff %" GST_STIME_FORMAT,
           GST_TIME_ARGS (frame->pts),
-          GST_TIME_ARGS (frame->pts - decoder->output_segment.start));
+          GST_STIME_ARGS (GST_CLOCK_DIFF (frame->pts,
+                  decoder->output_segment.start)));
       priv->base_timestamp = frame->pts;
       priv->base_picture_number = frame->decode_frame_number;
     }
@@ -4024,9 +4025,9 @@ gst_video_decoder_get_max_decode_time (GstVideoDecoder *
     deadline = G_MAXINT64;
 
   GST_LOG_OBJECT (decoder, "earliest %" GST_TIME_FORMAT
-      ", frame deadline %" GST_TIME_FORMAT ", deadline %" GST_TIME_FORMAT,
+      ", frame deadline %" GST_TIME_FORMAT ", deadline %" GST_STIME_FORMAT,
       GST_TIME_ARGS (earliest_time), GST_TIME_ARGS (frame->deadline),
-      GST_TIME_ARGS (deadline));
+      GST_STIME_ARGS (deadline));
 
   GST_OBJECT_UNLOCK (decoder);
 

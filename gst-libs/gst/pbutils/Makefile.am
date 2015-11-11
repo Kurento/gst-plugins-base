@@ -48,6 +48,7 @@ noinst_HEADERS = \
 libgstpbutils_@GST_API_VERSION@_la_LIBADD = \
   $(top_builddir)/gst-libs/gst/video/libgstvideo-@GST_API_VERSION@.la \
   $(top_builddir)/gst-libs/gst/audio/libgstaudio-@GST_API_VERSION@.la \
+  $(top_builddir)/gst-libs/gst/tag/libgsttag-@GST_API_VERSION@.la \
   -lgstbase-1.5 \
   $(GST_LIBS)
 libgstpbutils_@GST_API_VERSION@_la_CFLAGS = $(GST_PLUGINS_BASE_CFLAGS) $(GST_CFLAGS)

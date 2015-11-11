@@ -23,6 +23,7 @@
 #endif
 
 #include <locale.h>
+#include <errno.h>
 #include <string.h>
 #include "encoding-target.h"
 
@@ -58,6 +59,9 @@
  *
  * $GST_DATADIR/gstreamer-GST_API_VERSION/encoding-profile
  * $HOME/gstreamer-GST_API_VERSION/encoding-profile
+ *
+ * There also is a GST_ENCODING_TARGET_PATH environment variable
+ * defining a list of folder containing encoding target files.
  *
  * Naming convention
  *   $(target.category)/$(target.name).gep
@@ -267,7 +271,7 @@ gst_encoding_target_new (const gchar * name, const gchar * category,
   /* Validate name */
   if (!validate_name (name))
     goto invalid_name;
-  if (!validate_name (category))
+  if (category && !validate_name (category))
     goto invalid_category;
 
   res = (GstEncodingTarget *) g_object_new (GST_TYPE_ENCODING_TARGET, NULL);
@@ -788,10 +792,15 @@ get_matching_filenames (gchar * path, gchar * filename)
   GList *res = NULL;
   GDir *topdir;
   const gchar *subdirname;
+  gchar *tmp;
 
   topdir = g_dir_open (path, 0, NULL);
   if (G_UNLIKELY (topdir == NULL))
     return NULL;
+
+  tmp = g_build_filename (path, filename, NULL);
+  if (g_file_test (tmp, G_FILE_TEST_EXISTS))
+    res = g_list_append (res, tmp);
 
   while ((subdirname = g_dir_read_name (topdir))) {
     gchar *ltmp = g_build_filename (path, subdirname, NULL);
@@ -860,7 +869,9 @@ GstEncodingTarget *
 gst_encoding_target_load (const gchar * name, const gchar * category,
     GError ** error)
 {
-  gchar *lfilename, *tldir;
+  gint i;
+  gchar *lfilename, *tldir, **encoding_target_dirs;
+  const gchar *envvar;
   GstEncodingTarget *target = NULL;
 
   g_return_val_if_fail (name != NULL, NULL);
@@ -873,7 +884,23 @@ gst_encoding_target_load (const gchar * name, const gchar * category,
 
   lfilename = g_strdup_printf ("%s" GST_ENCODING_TARGET_SUFFIX, name);
 
+  envvar = g_getenv ("GST_ENCODING_TARGET_PATH");
+  if (envvar) {
+    encoding_target_dirs = g_strsplit (envvar, G_SEARCHPATH_SEPARATOR_S, -1);
+    for (i = 0; encoding_target_dirs[i]; i++) {
+      target = gst_encoding_target_subload (encoding_target_dirs[i],
+          category, lfilename, error);
+
+      if (target)
+        break;
+    }
+    g_strfreev (encoding_target_dirs);
+    if (target)
+      goto done;
+  }
+
   /* Try from local profiles */
+
   tldir =
       g_build_filename (g_get_user_data_dir (), "gstreamer-" GST_API_VERSION,
       GST_ENCODING_TARGET_DIRECTORY, NULL);
@@ -889,6 +916,7 @@ gst_encoding_target_load (const gchar * name, const gchar * category,
     g_free (tldir);
   }
 
+done:
   g_free (lfilename);
 
   return target;
@@ -988,14 +1016,24 @@ gst_encoding_target_save (GstEncodingTarget * target, GError ** error)
 {
   gchar *filename;
   gchar *lfilename;
+  gchar *dirname;
 
   g_return_val_if_fail (GST_IS_ENCODING_TARGET (target), FALSE);
   g_return_val_if_fail (target->category != NULL, FALSE);
 
   lfilename = g_strdup_printf ("%s" GST_ENCODING_TARGET_SUFFIX, target->name);
-  filename =
+  dirname =
       g_build_filename (g_get_user_data_dir (), "gstreamer-" GST_API_VERSION,
-      GST_ENCODING_TARGET_DIRECTORY, target->category, lfilename, NULL);
+      GST_ENCODING_TARGET_DIRECTORY, target->category, NULL);
+  errno = 0;
+  if (g_mkdir_with_parents (dirname, 0755)) {
+    GST_ERROR_OBJECT (target, "Could not create directory to save %s into: %s",
+        target->name, g_strerror (errno));
+
+    return FALSE;
+  }
+  filename = g_build_filename (dirname, lfilename, NULL);
+  g_free (dirname);
   g_free (lfilename);
 
   gst_encoding_target_save_to_file (target, filename, error);
