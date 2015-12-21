@@ -54,6 +54,7 @@ typedef struct {
   GstMultiHandleClient client;
 
   GSource *source;
+  GIOCondition condition;
 } GstSocketClient;
 
 /**
@@ -67,6 +68,8 @@ struct _GstMultiSocketSink {
   /*< private >*/
   GMainContext *main_context;
   GCancellable *cancellable;
+  gboolean send_messages;
+  gboolean send_dispatched;
 };
 
 struct _GstMultiSocketSinkClass {

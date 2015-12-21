@@ -198,8 +198,10 @@ gst_audio_convert_dispose (GObject * obj)
 {
   GstAudioConvert *this = GST_AUDIO_CONVERT (obj);
 
-  if (this->convert)
+  if (this->convert) {
     gst_audio_converter_free (this->convert);
+    this->convert = NULL;
+  }
 
   G_OBJECT_CLASS (parent_class)->dispose (obj);
 }
@@ -701,7 +703,7 @@ gst_audio_convert_transform (GstBaseTransform * base, GstBuffer * inbuf,
   gint insize, outsize;
   gboolean inbuf_writable;
   GstAudioConverterFlags flags;
-  gsize samples, out;
+  gsize samples, consumed, produced;
 
   /* get amount of samples to convert. */
   samples = gst_buffer_get_size (inbuf) / this->in_info.bpf;
@@ -735,8 +737,9 @@ gst_audio_convert_transform (GstBaseTransform * base, GstBuffer * inbuf,
     flags |= GST_AUDIO_CONVERTER_FLAG_SOURCE_WRITABLE;
 
   if (!GST_BUFFER_FLAG_IS_SET (inbuf, GST_BUFFER_FLAG_GAP)) {
-    if (!gst_audio_converter_samples (this->convert, flags, srcmap.data,
-            dstmap.data, samples, &out))
+    if (!gst_audio_converter_samples (this->convert, flags,
+            (gpointer *) & srcmap.data, samples, (gpointer *) & dstmap.data,
+            samples, &consumed, &produced))
       goto convert_error;
   } else {
     /* Create silence buffer */
