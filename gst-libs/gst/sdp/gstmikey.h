@@ -174,10 +174,6 @@ GstMIKEYPayload *   gst_mikey_payload_new      (GstMIKEYPayloadType type);
  *
  * Since: 1.4
  */
-#ifdef _FOOL_GTK_DOC_
-G_INLINE_FUNC GstMIKEYPayload * gst_mikey_payload_ref (GstMIKEYPayload * payload);
-#endif
-
 static inline GstMIKEYPayload *
 gst_mikey_payload_ref (GstMIKEYPayload * payload)
 {
@@ -192,10 +188,6 @@ gst_mikey_payload_ref (GstMIKEYPayload * payload)
  *
  * Since: 1.4
  */
-#ifdef _FOOL_GTK_DOC_
-G_INLINE_FUNC void gst_mikey_payload_unref (GstMIKEYPayload * payload);
-#endif
-
 static inline void
 gst_mikey_payload_unref (GstMIKEYPayload * payload)
 {
@@ -212,10 +204,6 @@ gst_mikey_payload_unref (GstMIKEYPayload * payload)
  *
  * Since: 1.4
  */
-#ifdef _FOOL_GTK_DOC_
-G_INLINE_FUNC GstMIKEYPayload * gst_mikey_payload_copy (const GstMIKEYPayload * payload);
-#endif
-
 static inline GstMIKEYPayload *
 gst_mikey_payload_copy (const GstMIKEYPayload * payload)
 {
@@ -559,6 +547,9 @@ GstMIKEYMessage *           gst_mikey_message_new_from_bytes    (GBytes *bytes, 
                                                                  GError **error);
 GBytes *                    gst_mikey_message_to_bytes          (GstMIKEYMessage *msg, GstMIKEYEncryptInfo *info,
                                                                  GError **error);
+GstMIKEYMessage *           gst_mikey_message_new_from_caps         (GstCaps *caps);
+gchar *                     gst_mikey_message_base64_encode     (GstMIKEYMessage* msg);
+
 /**
  * gst_mikey_message_ref:
  * @message: The message to refcount
@@ -569,10 +560,6 @@ GBytes *                    gst_mikey_message_to_bytes          (GstMIKEYMessage
  *
  * Since: 1.4
  */
-#ifdef _FOOL_GTK_DOC_
-G_INLINE_FUNC GstMIKEYMessage * gst_mikey_message_ref (GstMIKEYMessage * message);
-#endif
-
 static inline GstMIKEYMessage *
 gst_mikey_message_ref (GstMIKEYMessage * message)
 {
@@ -587,10 +574,6 @@ gst_mikey_message_ref (GstMIKEYMessage * message)
  *
  * Since: 1.4
  */
-#ifdef _FOOL_GTK_DOC_
-G_INLINE_FUNC void gst_mikey_message_unref (GstMIKEYMessage * message);
-#endif
-
 static inline void
 gst_mikey_message_unref (GstMIKEYMessage * message)
 {
@@ -607,10 +590,6 @@ gst_mikey_message_unref (GstMIKEYMessage * message)
  *
  * Since: 1.4
  */
-#ifdef _FOOL_GTK_DOC_
-G_INLINE_FUNC GstMIKEYMessage * gst_mikey_message_copy (const GstMIKEYMessage * message);
-#endif
-
 static inline GstMIKEYMessage *
 gst_mikey_message_copy (const GstMIKEYMessage * message)
 {

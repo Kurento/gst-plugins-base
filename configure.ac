@@ -5,7 +5,7 @@ dnl please read gstreamer/docs/random/autotools before changing this file
 dnl initialize autoconf
 dnl releases only do -Wall, git and prerelease does -Werror too
 dnl use a three digit version number for releases, and four for git/prerelease
-AC_INIT([GStreamer Base Plug-ins],[1.7.0.1],[http://bugzilla.gnome.org/enter_bug.cgi?product=GStreamer],[gst-plugins-base])
+AC_INIT([GStreamer Base Plug-ins],[1.7.1.1],[http://bugzilla.gnome.org/enter_bug.cgi?product=GStreamer],[gst-plugins-base])
 
 AG_GST_INIT
 
@@ -56,10 +56,10 @@ dnl      1.2.5 => 205
 dnl      1.10.9 (who knows) => 1009
 dnl
 dnl sets GST_LT_LDFLAGS
-AS_LIBTOOL(GST, 700, 0, 700)
+AS_LIBTOOL(GST, 701, 0, 701)
 
 dnl *** required versions of GStreamer stuff ***
-GST_REQ=1.7.0.1
+GST_REQ=1.7.1.1
 
 dnl *** autotools stuff ****
 
@@ -347,15 +347,16 @@ dnl Check for -Bsymbolic-functions linker flag used to avoid
 dnl intra-library PLT jumps, if available.
 AC_ARG_ENABLE(Bsymbolic,
               [AS_HELP_STRING([--disable-Bsymbolic],[avoid linking with -Bsymbolic])],,
-              [SAVED_LDFLAGS="${LDFLAGS}"
+              [SAVED_LDFLAGS="${LDFLAGS}" SAVED_LIBS="${LIBS}"
                AC_MSG_CHECKING([for -Bsymbolic-functions linker flag])
                LDFLAGS=-Wl,-Bsymbolic-functions
-               AC_LINK_IFELSE([AC_LANG_PROGRAM([[]], [[int main (void) { return 0; }]])],[
+               LIBS=
+               AC_TRY_LINK([], [return 0],
                            AC_MSG_RESULT(yes)
-                           enable_Bsymbolic=yes],[
+                           enable_Bsymbolic=yes,
                            AC_MSG_RESULT(no)
-                           enable_Bsymbolic=no])
-               LDFLAGS="${SAVED_LDFLAGS}"])
+                           enable_Bsymbolic=no)
+               LDFLAGS="${SAVED_LDFLAGS}" LIBS="${SAVED_LIBS}"])
 
 
 dnl *** set variables based on configure arguments ***

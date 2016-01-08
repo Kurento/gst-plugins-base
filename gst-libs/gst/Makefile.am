@@ -1,11 +1,11 @@
 SUBDIRS = \
 	tag \
 	fft \
+	rtp \
 	sdp \
 	rtsp \
 	video \
 	audio \
-	rtp \
 	pbutils \
 	riff \
 	app \
@@ -24,8 +24,10 @@ pbutils: video audio
 
 rtp: audio
 
+sdp: rtp
+
 INDEPENDENT_SUBDIRS = \
-	tag audio fft sdp video app
+	tag audio fft video app
 
 .PHONY: independent-subdirs $(INDEPENDENT_SUBDIRS)
 

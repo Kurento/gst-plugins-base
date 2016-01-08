@@ -501,19 +501,63 @@ GST_TYPE_AUDIO_BASE_SRC_SLAVE_METHOD
 
 <SECTION>
 <FILE>gstaudiochannels</FILE>
-<INCLUDE>gst/audio/audio-channels.h</INCLUDE>
+<INCLUDE>gst/audio/audio.h</INCLUDE>
 GstAudioChannelPosition
 GST_AUDIO_CHANNEL_POSITION_MASK
 gst_audio_channel_positions_to_mask
 gst_audio_channel_positions_from_mask
 gst_audio_channel_positions_to_valid_order
+gst_audio_channel_get_fallback_mask
 gst_audio_check_valid_channel_positions
 gst_audio_buffer_reorder_channels
 gst_audio_reorder_channels
 gst_audio_get_channel_reorder_map
+GstAudioChannelMix
+GstAudioChannelMixFlags
+gst_audio_channel_mix_new
+gst_audio_channel_mix_free
+gst_audio_channel_mix_is_passthrough
+gst_audio_channel_mix_samples
 <SUBSECTION Standard>
 GST_TYPE_AUDIO_CHANNEL_POSITION
 gst_audio_channel_position_get_type
+</SECTION>
+
+<SECTION>
+<FILE>gstaudioconverter</FILE>
+<TITLE>GstAudioConverter</TITLE>
+<INCLUDE>gst/audio/audio.h</INCLUDE>
+GstAudioConverter
+GstAudioConverterFlags
+gst_audio_converter_new
+gst_audio_converter_free
+gst_audio_converter_samples
+gst_audio_converter_get_in_frames
+gst_audio_converter_get_max_latency
+gst_audio_converter_get_out_frames
+GST_AUDIO_CONVERTER_OPT_DITHER_METHOD
+GST_AUDIO_CONVERTER_OPT_NOISE_SHAPING_METHOD
+GST_AUDIO_CONVERTER_OPT_QUANTIZATION
+gst_audio_converter_set_config
+gst_audio_converter_get_config
+<SUBSECTION Standard>
+gst_audio_converter_flags_get_type
+</SECTION>
+
+<SECTION>
+<FILE>gstaudioquantize</FILE>
+<TITLE>GstAudioQuantize</TITLE>
+<INCLUDE>gst/audio/audio.h</INCLUDE>
+GstAudioQuantize
+GstAudioQuantizeFlags
+GstAudioDitherMethod
+GstAudioNoiseShapingMethod
+gst_audio_quantize_free
+gst_audio_quantize_new
+gst_audio_quantize_samples
+<SUBSECTION Standard>
+gst_audio_quantize_flags_get_type
+GST_TYPE_AUDIO_QUANTIZE_FLAGS
 </SECTION>
 
 <SECTION>
@@ -1793,6 +1837,11 @@ gst_sdp_media_insert_attribute
 gst_sdp_media_replace_attribute
 gst_sdp_media_remove_attribute
 gst_sdp_media_add_attribute
+gst_sdp_media_get_caps_from_media
+gst_sdp_media_set_media_from_caps
+gst_sdp_make_keymgmt
+gst_sdp_message_attributes_to_caps
+gst_sdp_media_attributes_to_caps
 <SUBSECTION Standard>
 gst_sdp_message_get_type
 </SECTION>
@@ -1807,8 +1856,10 @@ GstMIKEYMessage
 
 gst_mikey_message_new
 gst_mikey_message_new_from_bytes
+gst_mikey_message_new_from_caps
 gst_mikey_message_new_from_data
 gst_mikey_message_to_bytes
+gst_mikey_message_base64_encode
 gst_mikey_message_copy
 gst_mikey_message_ref
 gst_mikey_message_unref
