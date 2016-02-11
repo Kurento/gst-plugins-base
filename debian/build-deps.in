@@ -1,3 +1,4 @@
+libgstreamer1.0-dev
 @GST_LIB_DEV_DEP@
 @GST_EXTRA_BUILD_DEPENDS@
 autotools-dev
