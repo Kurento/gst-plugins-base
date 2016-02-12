@@ -171,7 +171,7 @@ common-binary-fixup-arch::
 	mkdir -p $(CURDIR)/fake-home
 	HOME=$(CURDIR)/fake-home \
 	LD_LIBRARY_PATH=debian/libgstreamer-plugins-base$(gst_deb_abi)/usr/lib/$(DEB_HOST_MULTIARCH):$(LD_LIBRARY_PATH) \
-	    dh_gstscancodecs
+	    dh_gstscancodecs1.5
 	rm -rf $(CURDIR)/fake-home
 
 force:
