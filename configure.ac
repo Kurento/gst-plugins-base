@@ -5,7 +5,7 @@ dnl please read gstreamer/docs/random/autotools before changing this file
 dnl initialize autoconf
 dnl releases only do -Wall, git and prerelease does -Werror too
 dnl use a three digit version number for releases, and four for git/prerelease
-AC_INIT([GStreamer Base Plug-ins],[1.7.1.1],[http://bugzilla.gnome.org/enter_bug.cgi?product=GStreamer],[gst-plugins-base])
+AC_INIT([GStreamer Base Plug-ins],[1.8.0],[http://bugzilla.gnome.org/enter_bug.cgi?product=GStreamer],[gst-plugins-base])
 
 AG_GST_INIT
 
@@ -56,10 +56,10 @@ dnl      1.2.5 => 205
 dnl      1.10.9 (who knows) => 1009
 dnl
 dnl sets GST_LT_LDFLAGS
-AS_LIBTOOL(GST, 701, 0, 701)
+AS_LIBTOOL(GST, 800, 0, 800)
 
 dnl *** required versions of GStreamer stuff ***
-GST_REQ=1.7.1.1
+GST_REQ=1.8.0
 
 dnl *** autotools stuff ****
 
@@ -687,6 +687,19 @@ AG_GST_CHECK_FEATURE(OGG, [Xiph Ogg library], ogg, [
   AG_GST_PKG_CHECK_MODULES(OGG, ogg >= 1.0)
 ])
 
+dnl *** Opus ***
+translit(dnm, m, l) AM_CONDITIONAL(USE_OPUS, true)
+AG_GST_CHECK_FEATURE(OPUS, [opus], opus, [
+  PKG_CHECK_MODULES(OPUS, opus >= 0.9.4, [
+          AC_DEFINE([HAVE_OPUS], 1, [Define if Opus >= 0.9.4 is installed])
+          HAVE_OPUS="yes"
+  ], [
+          HAVE_OPUS="no"
+  ])
+  AC_SUBST(OPUS_CFLAGS)
+  AC_SUBST(OPUS_LIBS)
+])
+
 dnl *** pango ***
 translit(dnm, m, l) AM_CONDITIONAL(USE_PANGO, true)
 AG_GST_CHECK_FEATURE(PANGO, [Pango font rendering], pango, [
@@ -731,20 +744,12 @@ AM_CONDITIONAL(USE_CDPARANOIA, false)
 AM_CONDITIONAL(USE_IVORBIS, false)
 AM_CONDITIONAL(USE_LIBVISUAL, false)
 AM_CONDITIONAL(USE_OGG, false)
+AM_CONDITIONAL(USE_OPUS, false)
 AM_CONDITIONAL(USE_PANGO, false)
 AM_CONDITIONAL(USE_THEORA, false)
 AM_CONDITIONAL(USE_VORBIS, false)
 
 fi dnl of EXT plugins
-
-dnl seeking needs freetype, so check for it here
-PKG_CHECK_MODULES(FT2, freetype2 >= 2.0.9, HAVE_FT2="yes", [
-  AC_CHECK_FT2(2.0.9, HAVE_FT2="yes", HAVE_FT2="no")
-])
-dnl make the HAVE_FT2 variable available to automake and Makefile.am
-AM_CONDITIONAL(HAVE_FT2, test "x$HAVE_FT2" = "xyes")
-AC_SUBST(FT2_CFLAGS)
-AC_SUBST(FT2_LIBS)
 
 dnl *** gio-unix-2.0 for tests/check/pipelines/tcp.c ***
 PKG_CHECK_MODULES(GIO_UNIX_2_0, gio-unix-2.0 >= 2.24,
@@ -858,6 +863,7 @@ ext/alsa/Makefile
 ext/cdparanoia/Makefile
 ext/libvisual/Makefile
 ext/ogg/Makefile
+ext/opus/Makefile
 ext/pango/Makefile
 ext/theora/Makefile
 ext/vorbis/Makefile

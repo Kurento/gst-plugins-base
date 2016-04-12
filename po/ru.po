@@ -3,15 +3,15 @@
 #
 # Артём Попов <artfwo@gmail.com>, 2009.
 # Pavel Maryanov <acid_jack@ukr.net>, 2009.
-# Yuri Kozlov <yuray@komyakino.ru>, 2010, 2011, 2012, 2013, 2014, 2015.
+# Yuri Kozlov <yuray@komyakino.ru>, 2010, 2011, 2012, 2013, 2014, 2015, 2016.
 msgid ""
 msgstr ""
-"Project-Id-Version: gst-plugins-base 1.5.2\n"
+"Project-Id-Version: gst-plugins-base 1.7.90\n"
 "Report-Msgid-Bugs-To: http://bugzilla.gnome.org/\n"
-"POT-Creation-Date: 2015-12-24 12:56+0100\n"
-"PO-Revision-Date: 2015-06-26 09:00+0300\n"
+"POT-Creation-Date: 2016-03-24 11:26+0200\n"
+"PO-Revision-Date: 2016-03-05 08:42+0300\n"
 "Last-Translator: Yuri Kozlov <yuray@komyakino.ru>\n"
-"Language-Team: Russian <gnu@mx.ru>\n"
+"Language-Team: Russian <gnu@d07.ru>\n"
 "Language: ru\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -563,8 +563,14 @@ msgstr "q или ESC"
 msgid "quit"
 msgstr "выход"
 
+msgid "> or n"
+msgstr "> или n"
+
 msgid "play next"
 msgstr "воспроизвести следующее"
+
+msgid "< or b"
+msgstr "< или b"
 
 msgid "play previous"
 msgstr "воспроизвести предыдущее"
@@ -603,13 +609,20 @@ msgid "change subtitle track"
 msgstr "изменить дорожку субтитров"
 
 msgid "seek to beginning"
-msgstr ""
+msgstr "перемотать в начало"
 
 msgid "show keyboard shortcuts"
 msgstr "показать клавиатурные сокращения"
 
 msgid "Interactive mode - keyboard controls:"
 msgstr "Интерактивный режим — управление с клавиатуры:"
+
+msgid "Output status information and property notifications"
+msgstr "Выводить информацию о состоянии и уведомления о свойствах"
+
+msgid "Control playback behaviour setting playbin 'flags' property"
+msgstr ""
+"Управлять настройкой поведения воспроизведения playbin через свойство «flags»"
 
 msgid "Video sink to use (default is autovideosink)"
 msgstr "Используемый приёмник видео (по умолчанию autovideosink)"

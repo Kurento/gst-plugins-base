@@ -25,7 +25,7 @@
  * A baseclass for scopes (visualizers). It takes care of re-fitting the
  * audio-rate to video-rate and handles renegotiation (downstream video size
  * changes).
- * 
+ *
  * It also provides several background shading effects. These effects are
  * applied to a previous picture before the render() implementation can draw a
  * new frame.
@@ -42,6 +42,7 @@
 #include <gst/video/gstvideopool.h>
 
 #include "gstaudiovisualizer.h"
+#include "pbutils-enumtypes.h"
 
 GST_DEBUG_CATEGORY_STATIC (audio_visualizer_debug);
 #define GST_CAT_DEFAULT (audio_visualizer_debug)
@@ -136,43 +137,6 @@ struct _GstAudioVisualizerPrivate
 };
 
 /* shading functions */
-
-#define GST_TYPE_AUDIO_VISUALIZER_SHADER (gst_audio_visualizer_shader_get_type())
-static GType
-gst_audio_visualizer_shader_get_type (void)
-{
-  static GType shader_type = 0;
-  static const GEnumValue shaders[] = {
-    {GST_AUDIO_VISUALIZER_SHADER_NONE, "None", "none"},
-    {GST_AUDIO_VISUALIZER_SHADER_FADE, "Fade", "fade"},
-    {GST_AUDIO_VISUALIZER_SHADER_FADE_AND_MOVE_UP, "Fade and move up",
-        "fade-and-move-up"},
-    {GST_AUDIO_VISUALIZER_SHADER_FADE_AND_MOVE_DOWN, "Fade and move down",
-        "fade-and-move-down"},
-    {GST_AUDIO_VISUALIZER_SHADER_FADE_AND_MOVE_LEFT, "Fade and move left",
-        "fade-and-move-left"},
-    {GST_AUDIO_VISUALIZER_SHADER_FADE_AND_MOVE_RIGHT,
-          "Fade and move right",
-        "fade-and-move-right"},
-    {GST_AUDIO_VISUALIZER_SHADER_FADE_AND_MOVE_HORIZ_OUT,
-        "Fade and move horizontally out", "fade-and-move-horiz-out"},
-    {GST_AUDIO_VISUALIZER_SHADER_FADE_AND_MOVE_HORIZ_IN,
-        "Fade and move horizontally in", "fade-and-move-horiz-in"},
-    {GST_AUDIO_VISUALIZER_SHADER_FADE_AND_MOVE_VERT_OUT,
-        "Fade and move vertically out", "fade-and-move-vert-out"},
-    {GST_AUDIO_VISUALIZER_SHADER_FADE_AND_MOVE_VERT_IN,
-        "Fade and move vertically in", "fade-and-move-vert-in"},
-    {0, NULL, NULL},
-  };
-
-  if (G_UNLIKELY (shader_type == 0)) {
-    /* TODO: rename when exporting it as a library */
-    shader_type =
-        g_enum_register_static
-        ("GstAudioVisualizerShader-BaseExtLibvisual", shaders);
-  }
-  return shader_type;
-}
 
 /* we're only supporting GST_VIDEO_FORMAT_xRGB right now) */
 #if G_BYTE_ORDER == G_LITTLE_ENDIAN
@@ -553,8 +517,7 @@ gst_audio_visualizer_get_type (void)
 
     /* TODO: rename when exporting it as a library */
     _type = g_type_register_static (GST_TYPE_ELEMENT,
-        "GstAudioVisualizer-BaseExtLibvisual", &audio_visualizer_info,
-        G_TYPE_FLAG_ABSTRACT);
+        "GstAudioVisualizer", &audio_visualizer_info, G_TYPE_FLAG_ABSTRACT);
     g_once_init_leave (&audio_visualizer_type, _type);
   }
   return (GType) audio_visualizer_type;

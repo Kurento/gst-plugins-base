@@ -1,9 +1,9 @@
 # Danish translation of gst-plugins-base.
-# Copyright (C) 2014 gst, Mogens Jaeger, Joe Hansen.
+# Copyright (C) 2016 gst, Mogens Jaeger, Joe Hansen.
 # This file is distributed under the same license as the gst-plugins-base package.
 #
 # Mogens Jaeger <mogens@jaeger.tf>, 2007.
-# Joe Hansen <joedalton2@yahoo.dk>, 2009, 2010, 2011, 2013, 2014, 2015.
+# Joe Hansen <joedalton2@yahoo.dk>, 2009, 2010, 2011, 2013, 2014, 2015, 2016.
 #
 # capture -> optage
 # gain -> forstærkning
@@ -31,10 +31,10 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: gst-plugins-base 1.5.2\n"
+"Project-Id-Version: gst-plugins-base 1.7.2\n"
 "Report-Msgid-Bugs-To: http://bugzilla.gnome.org/\n"
-"POT-Creation-Date: 2015-12-24 12:56+0100\n"
-"PO-Revision-Date: 2015-06-27 16:38+0100\n"
+"POT-Creation-Date: 2016-03-24 11:26+0200\n"
+"PO-Revision-Date: 2016-02-23 16:38+0100\n"
 "Last-Translator: Joe Hansen <joedalton2@yahoo.dk>\n"
 "Language-Team: Danish <dansk@dansk-gruppen.dk>\n"
 "Language: da\n"
@@ -599,8 +599,14 @@ msgstr "q eller ESC"
 msgid "quit"
 msgstr "afslut"
 
+msgid "> or n"
+msgstr ""
+
 msgid "play next"
 msgstr "afspil næste"
+
+msgid "< or b"
+msgstr ""
 
 msgid "play previous"
 msgstr "afspil forrige"
@@ -639,13 +645,20 @@ msgid "change subtitle track"
 msgstr "ændr undertekstspor"
 
 msgid "seek to beginning"
-msgstr ""
+msgstr "søg til begyndelsen"
 
 msgid "show keyboard shortcuts"
 msgstr "vis genvejstaster"
 
 msgid "Interactive mode - keyboard controls:"
 msgstr "Interaktiv tilstand - kontrol via tastatur:"
+
+msgid "Output status information and property notifications"
+msgstr "Vis statusinformation og egenskabspåmindelser"
+
+msgid "Control playback behaviour setting playbin 'flags' property"
+msgstr ""
+"Kontroller afspilningens opførsel ved at angive playbin »flags«-egenskab"
 
 msgid "Video sink to use (default is autovideosink)"
 msgstr "Brug denne videokanal (standard er autovideosink)"

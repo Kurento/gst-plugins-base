@@ -62,7 +62,8 @@ typedef enum {
     GST_BASE_TEXT_OVERLAY_VALIGN_BOTTOM,
     GST_BASE_TEXT_OVERLAY_VALIGN_TOP,
     GST_BASE_TEXT_OVERLAY_VALIGN_POS,
-    GST_BASE_TEXT_OVERLAY_VALIGN_CENTER
+    GST_BASE_TEXT_OVERLAY_VALIGN_CENTER,
+    GST_BASE_TEXT_OVERLAY_VALIGN_ABSOLUTE
 } GstBaseTextOverlayVAlign;
 
 /**
@@ -80,7 +81,8 @@ typedef enum {
     GST_BASE_TEXT_OVERLAY_HALIGN_CENTER,
     GST_BASE_TEXT_OVERLAY_HALIGN_RIGHT,
     GST_BASE_TEXT_OVERLAY_HALIGN_UNUSED,
-    GST_BASE_TEXT_OVERLAY_HALIGN_POS
+    GST_BASE_TEXT_OVERLAY_HALIGN_POS,
+    GST_BASE_TEXT_OVERLAY_HALIGN_ABSOLUTE
 } GstBaseTextOverlayHAlign;
 
 /**
@@ -184,8 +186,12 @@ struct _GstBaseTextOverlay {
     gdouble                  render_scale;
 
     /* dimension of text_image, the physical dimension */
-    gint                     image_width;
-    gint                     image_height;
+    guint                    text_width;
+    guint                    text_height;
+
+    /* position of rendering in image coordinates */
+    gint                     text_x;
+    gint                     text_y;
 
     /* window dimension, reported in the composition meta params. This is set
      * to stream width, height if missing */

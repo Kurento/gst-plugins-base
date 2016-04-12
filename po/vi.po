@@ -1,16 +1,16 @@
 # Vietnamese Translation for GST Plugins Base.
 # Bản dịch tiếng Việt dành cho GST Plugins Base.
-# Copyright © 2015 Free Software Foundation, Inc.
+# Copyright © 2016 Free Software Foundation, Inc.
 # This file is distributed under the same license as the gst-plugins-base package.
 # Clytie Siddall <clytie@riverland.net.au>, 2005-2010.
-# Trần Ngọc Quân <vnwildman@gmail.com>, 2012-2014, 2015.
+# Trần Ngọc Quân <vnwildman@gmail.com>, 2012-2014, 2015, 2016.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: gst-plugins-base 1.5.2\n"
+"Project-Id-Version: gst-plugins-base 1.7.90\n"
 "Report-Msgid-Bugs-To: http://bugzilla.gnome.org/\n"
-"POT-Creation-Date: 2015-12-24 12:56+0100\n"
-"PO-Revision-Date: 2015-08-23 15:58+0700\n"
+"POT-Creation-Date: 2016-03-24 11:26+0200\n"
+"PO-Revision-Date: 2016-03-03 07:49+0700\n"
 "Last-Translator: Trần Ngọc Quân <vnwildman@gmail.com>\n"
 "Language-Team: Vietnamese <translation-team-vi@lists.sourceforge.net>\n"
 "Language: vi\n"
@@ -178,15 +178,13 @@ msgid "ICY internet radio"
 msgstr "Thu thanh Internet ICY"
 
 msgid "Apple Lossless Audio (ALAC)"
-msgstr "Âm thanh không mất gì của Apple (Apple Lossless Audio: ALAC)"
+msgstr "Âm thanh nén giữ nguyên dữ liệu của Apple (Apple Lossless Audio: ALAC)"
 
 msgid "Free Lossless Audio Codec (FLAC)"
-msgstr ""
-"Phương pháp tự do không mất gì nén và truyền nhiều loại dữ liệu âm thanh "
-"khác (Free Lossless Audio Codec: FLAC)"
+msgstr "Mã hóa âm thanh không mất dữ liệu (Free Lossless Audio Codec: FLAC)"
 
 msgid "Lossless True Audio (TTA)"
-msgstr "Âm thanh đúng không mất gì (Lossless True Audio: TTA)"
+msgstr "Âm thanh đúng không mất dữ liệu (Lossless True Audio: TTA)"
 
 msgid "Windows Media Speech"
 msgstr "Tiếng nói của nhạc/ảnh Windows (Windows Media Speech)"
@@ -198,7 +196,7 @@ msgid "FFMpeg v1"
 msgstr "FFMpeg v1"
 
 msgid "Lossless MSZH"
-msgstr "MSZH không mất gì (Lossless MSZH)"
+msgstr "MSZH không mất dữ liệu (Lossless MSZH)"
 
 msgid "Run-length encoding"
 msgstr "Mã hóa độ dài chạy (Run-Length Encoding: RLE)"
@@ -559,7 +557,7 @@ msgid "space"
 msgstr "dấu cách"
 
 msgid "pause/unpause"
-msgstr "dừng/thôi dừng"
+msgstr "dừng/phát tiếp"
 
 msgid "q or ESC"
 msgstr "q hay ESC"
@@ -567,8 +565,14 @@ msgstr "q hay ESC"
 msgid "quit"
 msgstr "thoát"
 
+msgid "> or n"
+msgstr "> hoặc n"
+
 msgid "play next"
 msgstr "phát kế"
+
+msgid "< or b"
+msgstr "< hoặc b"
 
 msgid "play previous"
 msgstr "phát kế trước"
@@ -607,13 +611,19 @@ msgid "change subtitle track"
 msgstr "đổi phụ đề rãnh"
 
 msgid "seek to beginning"
-msgstr ""
+msgstr "di chuyển vị trí đọc đến điểm đầu"
 
 msgid "show keyboard shortcuts"
 msgstr "hiện phím tắt"
 
 msgid "Interactive mode - keyboard controls:"
 msgstr "Chế độ tương tác - điều khiển thông qua bàn phím:"
+
+msgid "Output status information and property notifications"
+msgstr "Thông tin trạng thái xuất và các thông báo thuộc tính"
+
+msgid "Control playback behaviour setting playbin 'flags' property"
+msgstr "Cài đặt ứng xử điều khiển phát lại phát thuộc tính “flags”"
 
 msgid "Video sink to use (default is autovideosink)"
 msgstr "Bộ chứa video được dùng (mặc định là autovideosink)"
@@ -637,7 +647,7 @@ msgid "Playlist file containing input media files"
 msgstr "Tập tin danh sách phát có chứa các tập tin đa phương tiện đầu vào"
 
 msgid "Do not print any output (apart from errors)"
-msgstr "Đừng in bất kỳ cái gì ra (lấy riêng từ lỗi)"
+msgstr "Đừng in bất kỳ cái gì ra (ngoại trừ lỗi)"
 
 #, c-format
 msgid "Usage: %s FILE1|URI1 [FILE2|URI2] [FILE3|URI3] ..."

@@ -28,11 +28,11 @@ EXPORTS
 	gst_audio_cd_src_get_type
 	gst_audio_cd_src_mode_get_type
 	gst_audio_channel_get_fallback_mask
-	gst_audio_channel_mix_flags_get_type
-	gst_audio_channel_mix_free
-	gst_audio_channel_mix_is_passthrough
-	gst_audio_channel_mix_new
-	gst_audio_channel_mix_samples
+	gst_audio_channel_mixer_flags_get_type
+	gst_audio_channel_mixer_free
+	gst_audio_channel_mixer_is_passthrough
+	gst_audio_channel_mixer_new
+	gst_audio_channel_mixer_samples
 	gst_audio_channel_position_get_type
 	gst_audio_channel_positions_from_mask
 	gst_audio_channel_positions_to_mask
@@ -53,8 +53,9 @@ EXPORTS
 	gst_audio_converter_get_max_latency
 	gst_audio_converter_get_out_frames
 	gst_audio_converter_new
+	gst_audio_converter_reset
 	gst_audio_converter_samples
-	gst_audio_converter_set_config
+	gst_audio_converter_update_config
 	gst_audio_decoder_allocate_output_buffer
 	gst_audio_decoder_finish_frame
 	gst_audio_decoder_get_allocator
@@ -150,6 +151,7 @@ EXPORTS
 	gst_audio_quantize_flags_get_type
 	gst_audio_quantize_free
 	gst_audio_quantize_new
+	gst_audio_quantize_reset
 	gst_audio_quantize_samples
 	gst_audio_reorder_channels
 	gst_audio_ring_buffer_acquire

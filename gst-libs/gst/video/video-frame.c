@@ -31,7 +31,21 @@
 #include "video-tile.h"
 #include "gstvideometa.h"
 
-GST_DEBUG_CATEGORY_EXTERN (GST_CAT_PERFORMANCE);
+#define CAT_PERFORMANCE video_frame_get_perf_category()
+
+static inline GstDebugCategory *
+video_frame_get_perf_category (void)
+{
+  static GstDebugCategory *cat = NULL;
+
+  if (g_once_init_enter (&cat)) {
+    GstDebugCategory *c;
+
+    GST_DEBUG_CATEGORY_GET (c, "GST_PERFORMANCE");
+    g_once_init_leave (&cat, c);
+  }
+  return cat;
+}
 
 /**
  * gst_video_frame_map_id:
@@ -172,10 +186,47 @@ invalid_size:
  * @buffer: the buffer to map
  * @flags: #GstMapFlags
  *
- * Use @info and @buffer to fill in the values of @frame.
+ * Use @info and @buffer to fill in the values of @frame. @frame is usually
+ * allocated on the stack, and you will pass the address to the #GstVideoFrame
+ * structure allocated on the stack; gst_video_frame_map() will then fill in
+ * the structures with the various video-specific information you need to access
+ * the pixels of the video buffer. You can then use accessor macros such as
+ * GST_VIDEO_FRAME_COMP_DATA(), GST_VIDEO_FRAME_PLANE_DATA(),
+ * GST_VIDEO_FRAME_COMP_STRIDE(), GST_VIDEO_FRAME_PLANE_STRIDE() etc.
+ * to get to the pixels.
+ *
+ * |[<!-- language="C" -->
+ *   GstVideoFrame vframe;
+ *   ...
+ *   // set RGB pixels to black one at a time
+ *   if (gst_video_frame_map (&amp;vframe, video_info, video_buffer)) {
+ *     guint8 *pixels = GST_VIDEO_FRAME_PLANE_DATA (vframe, 0);
+ *     guint stride = GST_VIDEO_FRAME_PLANE_STRIDE (vframe, 0);
+ *     guint pixel_stride = GST_VIDEO_FRAME_PLANE_PSTRIDE (vframe, 0);
+ *
+ *     for (h = 0; h < height; ++h) {
+ *       for (w = 0; w < width; ++w) {
+ *         guint8 *pixel = pixels + h * stride + w * pixel_stride;
+ *
+ *         memset (pixel, 0, pixel_stride);
+ *       }
+ *     }
+ *   }
+ *   ...
+ * ]|
  *
  * All video planes of @buffer will be mapped and the pointers will be set in
  * @frame->data.
+ *
+ * The purpose of this function is to make it easy for you to get to the video
+ * pixels in a generic way, without you having to worry too much about details
+ * such as whether the video data is allocated in one contiguous memory chunk
+ * or multiple memory chunks (e.g. one for each plane); or if custom strides
+ * and custom plane offsets are used or not (as signalled by GstVideoMeta on
+ * each buffer). This function will just fill the #GstVideoFrame structure
+ * with the right values and if you use the accessor macros everything will
+ * just work and you can access the data easily. It also maps the underlying
+ * memory chunks for you.
  *
  * Returns: %TRUE on success.
  */
@@ -316,8 +367,7 @@ gst_video_frame_copy_plane (GstVideoFrame * dest, const GstVideoFrame * src,
   } else {
     guint j;
 
-    GST_CAT_DEBUG (GST_CAT_PERFORMANCE, "copy plane %d, w:%d h:%d ", plane, w,
-        h);
+    GST_CAT_DEBUG (CAT_PERFORMANCE, "copy plane %d, w:%d h:%d ", plane, w, h);
 
     for (j = 0; j < h; j++) {
       memcpy (dp, sp, w);

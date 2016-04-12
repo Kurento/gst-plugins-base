@@ -59,24 +59,33 @@ typedef struct _GstAudioConverter GstAudioConverter;
 /**
  * GstAudioConverterFlags:
  * @GST_AUDIO_CONVERTER_FLAG_NONE: no flag
- * @GST_AUDIO_CONVERTER_FLAG_SOURCE_WRITABLE: the source is writable and can be
+ * @GST_AUDIO_CONVERTER_FLAG_IN_WRITABLE: the input sample arrays are writable and can be
  *    used as temporary storage during conversion.
+ * @GST_AUDIO_CONVERTER_FLAG_VARIABLE_RATE: allow arbitrary rate updates with
+ *    gst_audio_converter_update_config().
  *
- * Extra flags passed to gst_audio_converter_samples().
+ * Extra flags passed to gst_audio_converter_new() and gst_audio_converter_samples().
  */
 typedef enum {
   GST_AUDIO_CONVERTER_FLAG_NONE            = 0,
-  GST_AUDIO_CONVERTER_FLAG_SOURCE_WRITABLE = (1 << 0)
+  GST_AUDIO_CONVERTER_FLAG_IN_WRITABLE     = (1 << 0),
+  GST_AUDIO_CONVERTER_FLAG_VARIABLE_RATE   = (1 << 1)
 } GstAudioConverterFlags;
 
-GstAudioConverter *  gst_audio_converter_new             (GstAudioInfo *in_info,
+GstAudioConverter *  gst_audio_converter_new             (GstAudioConverterFlags flags,
+                                                          GstAudioInfo *in_info,
                                                           GstAudioInfo *out_info,
                                                           GstStructure *config);
 
 void                 gst_audio_converter_free            (GstAudioConverter * convert);
 
-gboolean             gst_audio_converter_set_config      (GstAudioConverter * convert, GstStructure *config);
-const GstStructure * gst_audio_converter_get_config      (GstAudioConverter * convert);
+void                 gst_audio_converter_reset           (GstAudioConverter * convert);
+
+gboolean             gst_audio_converter_update_config   (GstAudioConverter * convert,
+                                                          gint in_rate, gint out_rate,
+                                                          GstStructure *config);
+const GstStructure * gst_audio_converter_get_config      (GstAudioConverter * convert,
+                                                          gint *in_rate, gint *out_rate);
 
 gsize                gst_audio_converter_get_out_frames  (GstAudioConverter *convert,
                                                           gsize in_frames);
@@ -88,8 +97,7 @@ gsize                gst_audio_converter_get_max_latency (GstAudioConverter *con
 
 gboolean             gst_audio_converter_samples         (GstAudioConverter * convert,
                                                           GstAudioConverterFlags flags,
-                                                          gpointer in[], gsize in_samples,
-                                                          gpointer out[], gsize out_samples,
-                                                          gsize *in_consumed, gsize *out_produced);
+                                                          gpointer in[], gsize in_frames,
+                                                          gpointer out[], gsize out_frames);
 
 #endif /* __GST_AUDIO_CONVERTER_H__ */

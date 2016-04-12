@@ -2128,6 +2128,13 @@ gst_video_converter_new (GstVideoInfo * in_info, GstVideoInfo * out_info,
   finfo = gst_video_format_get_info (convert->unpack_format);
   convert->unpack_bits = GST_VIDEO_FORMAT_INFO_DEPTH (finfo, 0);
   convert->unpack_rgb = GST_VIDEO_FORMAT_INFO_IS_RGB (finfo);
+  if (convert->unpack_rgb
+      && in_info->colorimetry.matrix != GST_VIDEO_COLOR_MATRIX_RGB) {
+    /* force identity matrix for RGB input */
+    GST_WARNING ("invalid matrix %d for input RGB format, using RGB",
+        in_info->colorimetry.matrix);
+    convert->in_info.colorimetry.matrix = GST_VIDEO_COLOR_MATRIX_RGB;
+  }
 
   convert->pack_format = out_info->finfo->unpack_format;
   finfo = gst_video_format_get_info (convert->pack_format);
@@ -2136,6 +2143,13 @@ gst_video_converter_new (GstVideoInfo * in_info, GstVideoInfo * out_info,
   convert->pack_pal =
       gst_video_format_get_palette (GST_VIDEO_INFO_FORMAT (out_info),
       &convert->pack_palsize);
+  if (convert->pack_rgb
+      && out_info->colorimetry.matrix != GST_VIDEO_COLOR_MATRIX_RGB) {
+    /* force identity matrix for RGB output */
+    GST_WARNING ("invalid matrix %d for output RGB format, using RGB",
+        out_info->colorimetry.matrix);
+    convert->out_info.colorimetry.matrix = GST_VIDEO_COLOR_MATRIX_RGB;
+  }
 
   if (video_converter_lookup_fastpath (convert))
     goto done;
@@ -3164,6 +3178,24 @@ convert_UYVY_Y444 (GstVideoConverter * convert, const GstVideoFrame * src,
       FRAME_GET_U_STRIDE (dest), dv,
       FRAME_GET_V_STRIDE (dest), s,
       FRAME_GET_STRIDE (src), (width + 1) / 2, height);
+
+  convert_fill_border (convert, dest);
+}
+
+static void
+convert_UYVY_GRAY8 (GstVideoConverter * convert, const GstVideoFrame * src,
+    GstVideoFrame * dest)
+{
+  gint width = convert->in_width;
+  gint height = convert->in_height;
+  guint16 *s;
+  guint8 *d;
+
+  s = GST_VIDEO_FRAME_PLANE_DATA (src, 0);
+  d = GST_VIDEO_FRAME_PLANE_DATA (dest, 0);
+
+  video_orc_convert_UYVY_GRAY8 (d,
+      FRAME_GET_STRIDE (dest), s, FRAME_GET_STRIDE (src), width, height);
 
   convert_fill_border (convert, dest);
 }
@@ -4339,6 +4371,8 @@ static const VideoTransform transforms[] = {
       TRUE, FALSE, FALSE, FALSE, 0, 0, convert_YUY2_Y42B},
   {GST_VIDEO_FORMAT_YUY2, GST_VIDEO_FORMAT_Y444, TRUE, FALSE, TRUE, TRUE,
       TRUE, FALSE, FALSE, FALSE, 0, 0, convert_YUY2_Y444},
+  {GST_VIDEO_FORMAT_UYVY, GST_VIDEO_FORMAT_GRAY8, TRUE, TRUE, TRUE, TRUE,
+      TRUE, FALSE, FALSE, FALSE, 0, 0, convert_UYVY_GRAY8},
 
   {GST_VIDEO_FORMAT_UYVY, GST_VIDEO_FORMAT_I420, TRUE, FALSE, TRUE, FALSE,
       FALSE, FALSE, FALSE, FALSE, 0, 0, convert_UYVY_I420},

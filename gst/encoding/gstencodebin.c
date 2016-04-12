@@ -463,22 +463,28 @@ gst_encode_bin_dispose (GObject * object)
 
   if (ebin->muxers)
     gst_plugin_feature_list_free (ebin->muxers);
+  ebin->muxers = NULL;
 
   if (ebin->formatters)
     gst_plugin_feature_list_free (ebin->formatters);
+  ebin->formatters = NULL;
 
   if (ebin->encoders)
     gst_plugin_feature_list_free (ebin->encoders);
+  ebin->encoders = NULL;
 
   if (ebin->parsers)
     gst_plugin_feature_list_free (ebin->parsers);
+  ebin->parsers = NULL;
 
   gst_encode_bin_tear_down_profile (ebin);
 
   if (ebin->raw_video_caps)
     gst_caps_unref (ebin->raw_video_caps);
+  ebin->raw_video_caps = NULL;
   if (ebin->raw_audio_caps)
     gst_caps_unref (ebin->raw_audio_caps);
+  ebin->raw_audio_caps = NULL;
   /* if (ebin->raw_text_caps) */
   /*   gst_caps_unref (ebin->raw_text_caps); */
 
@@ -1100,12 +1106,18 @@ _outfilter_caps_set_cb (GstPad * outfilter_sinkpad,
     GParamSpec * arg G_GNUC_UNUSED, StreamGroup * group)
 {
   GstCaps *caps;
+  GstStructure *structure;
 
   g_object_get (outfilter_sinkpad, "caps", &caps, NULL);
+  caps = gst_caps_copy (caps);
+
+  structure = gst_caps_get_structure (caps, 0);
+  gst_structure_remove_field (structure, "streamheader");
   GST_INFO_OBJECT (group->ebin, "Forcing caps to %" GST_PTR_FORMAT, caps);
   g_object_set (group->outfilter, "caps", caps, NULL);
   g_signal_handler_disconnect (outfilter_sinkpad, group->outputfilter_caps_sid);
   group->outputfilter_caps_sid = 0;
+  gst_caps_unref (caps);
 }
 
 static void

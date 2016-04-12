@@ -4451,7 +4451,7 @@ autoplug_continue_cb (GstElement * element, GstPad * pad, GstCaps * caps,
 
       sinkcaps = gst_pad_query_caps (sinkpad, NULL);
       if (!gst_caps_is_any (sinkcaps))
-        ret = !gst_pad_query_accept_caps (sinkpad, caps);
+        ret = !gst_caps_is_subset (caps, sinkcaps);
       gst_caps_unref (sinkcaps);
       gst_object_unref (sinkpad);
     }
@@ -4482,7 +4482,7 @@ autoplug_continue_cb (GstElement * element, GstPad * pad, GstCaps * caps,
 
       sinkcaps = gst_pad_query_caps (sinkpad, NULL);
       if (!gst_caps_is_any (sinkcaps))
-        ret = !gst_pad_query_accept_caps (sinkpad, caps);
+        ret = !gst_caps_is_subset (caps, sinkcaps);
       gst_caps_unref (sinkcaps);
       gst_object_unref (sinkpad);
     }
@@ -4500,7 +4500,7 @@ autoplug_continue_cb (GstElement * element, GstPad * pad, GstCaps * caps,
 
       sinkcaps = gst_pad_query_caps (sinkpad, NULL);
       if (!gst_caps_is_any (sinkcaps))
-        ret = !gst_pad_query_accept_caps (sinkpad, caps);
+        ret = !gst_caps_is_subset (caps, sinkcaps);
       gst_caps_unref (sinkcaps);
       gst_object_unref (sinkpad);
     }
@@ -4522,18 +4522,20 @@ static gboolean
 sink_accepts_caps (GstPlayBin * playbin, GstElement * sink, GstCaps * caps)
 {
   GstPad *sinkpad;
+  gboolean ret = TRUE;
 
   if ((sinkpad = gst_element_get_static_pad (sink, "sink"))) {
+    GstCaps *sinkcaps;
+
+    sinkcaps = gst_pad_query_caps (sinkpad, NULL);
     /* Got the sink pad, now let's see if the element actually does accept the
      * caps that we have */
-    if (!gst_pad_query_accept_caps (sinkpad, caps)) {
-      gst_object_unref (sinkpad);
-      return FALSE;
-    }
+    ret = gst_caps_is_subset (caps, sinkcaps);
+    gst_caps_unref (sinkcaps);
     gst_object_unref (sinkpad);
   }
 
-  return TRUE;
+  return ret;
 }
 
 /* We are asked to select an element. See if the next element to check
@@ -4987,12 +4989,40 @@ done:
    * if a parser asks us but a decoder is required after it
    * because no sink can handle the format directly.
    */
-  if (gst_caps_is_empty (result)) {
+  {
     GstPad *target = gst_ghost_pad_get_target (GST_GHOST_PAD (pad));
 
     if (target) {
       GstCaps *target_caps = gst_pad_get_pad_template_caps (target);
+
       GST_PLAY_BIN_FILTER_CAPS (filter, target_caps);
+      if (!gst_caps_is_any (target_caps)) {
+        GstCaps *tmp;
+        GstCapsFeatures *features;
+        GstStructure *s;
+        guint i, n;
+
+        n = gst_caps_get_size (target_caps);
+        tmp = gst_caps_new_empty ();
+        for (i = 0; i < n; i++) {
+          features = gst_caps_get_features (target_caps, i);
+          s = gst_caps_get_structure (target_caps, i);
+
+          if (!gst_structure_has_name (s, "video/x-raw") &&
+              !gst_structure_has_name (s, "audio/x-raw")) {
+            gst_caps_append_structure_full (tmp,
+                gst_structure_copy (s), gst_caps_features_copy (features));
+          } else if (gst_caps_features_is_any (features)
+              || gst_caps_features_is_equal (features,
+                  GST_CAPS_FEATURES_MEMORY_SYSTEM_MEMORY)) {
+            gst_caps_append_structure (tmp, gst_structure_copy (s));
+          }
+        }
+        gst_caps_unref (target_caps);
+        target_caps = tmp;
+      }
+
+
       result = gst_caps_merge (result, target_caps);
       gst_object_unref (target);
     }
