@@ -20,3 +20,4 @@ debian/tmp/usr/lib/*/gstreamer-@GST_ABI@/libgstvideoscale.so
 debian/tmp/usr/lib/*/gstreamer-@GST_ABI@/libgstvideotestsrc.so
 debian/tmp/usr/lib/*/gstreamer-@GST_ABI@/libgstvolume.so
 debian/tmp/usr/lib/*/gstreamer-@GST_ABI@/libgstvorbis.so
+debian/tmp/usr/lib/*/gstreamer-@GST_ABI@/libgstopus.so
