@@ -238,22 +238,6 @@ gst_opus_dec_negotiate (GstOpusDec * dec, const GstAudioChannelPosition * pos)
     GstCaps *constraint, *inter;
 
     constraint = gst_caps_from_string ("audio/x-raw");
-    if (dec->sample_rate == 0 || dec->sample_rate == 48000) {
-      gst_caps_set_simple (constraint, "rate", G_TYPE_INT, 48000, NULL);
-    } else {
-      GValue v = { 0 }
-      , l = {
-      0};
-      g_value_init (&l, GST_TYPE_LIST);
-      g_value_init (&v, G_TYPE_INT);
-      g_value_set_int (&v, dec->sample_rate);
-      gst_value_list_append_value (&l, &v);
-      g_value_set_int (&v, 48000);
-      gst_value_list_append_value (&l, &v);
-      gst_caps_set_value (constraint, "rate", &l);
-      g_value_unset (&v);
-      g_value_unset (&l);
-    }
     if (dec->n_channels <= 2) { /* including 0 */
       gst_caps_set_simple (constraint, "channels", GST_TYPE_INT_RANGE, 1, 2,
           NULL);
@@ -268,6 +252,7 @@ gst_opus_dec_negotiate (GstOpusDec * dec, const GstAudioChannelPosition * pos)
     if (gst_caps_is_empty (inter)) {
       GST_DEBUG_OBJECT (dec, "Empty intersection, failed to negotiate");
       gst_caps_unref (inter);
+      gst_caps_unref (caps);
       return FALSE;
     }
 
@@ -284,6 +269,7 @@ gst_opus_dec_negotiate (GstOpusDec * dec, const GstAudioChannelPosition * pos)
 
     dec->sample_rate = rate;
     dec->n_channels = channels;
+    gst_caps_unref (caps);
   }
 
   if (dec->n_channels == 0) {
@@ -569,9 +555,12 @@ opus_dec_chain_parse_data (GstOpusDec * dec, GstBuffer * buffer)
     gst_buffer_unmap (buf, &map);
 
   if (n < 0) {
-    GST_ELEMENT_ERROR (dec, STREAM, DECODE, ("Decoding error: %d", n), (NULL));
+    GstFlowReturn ret = GST_FLOW_ERROR;
+
     gst_buffer_unref (outbuf);
-    return GST_FLOW_ERROR;
+    GST_AUDIO_DECODER_ERROR (dec, 1, STREAM, DECODE, ("Error decoding stream"),
+        ("Decoding error (%d): %s", n, opus_strerror (n)), ret);
+    return ret;
   }
   GST_DEBUG_OBJECT (dec, "decoded %d samples", n);
   gst_buffer_set_size (outbuf, n * 2 * dec->n_channels);
@@ -862,45 +851,83 @@ gst_opus_dec_set_property (GObject * object, guint prop_id,
   }
 }
 
-GstCaps *
-gst_opus_dec_getcaps (GstAudioDecoder * dec, GstCaps * filter)
+/* caps must be writable */
+static void
+gst_opus_dec_caps_extend_channels_options (GstCaps * caps)
 {
-  GstCaps *caps;
   unsigned n;
   int channels;
 
-  if (filter) {
-    filter = gst_caps_copy (filter);
-    for (n = 0; n < gst_caps_get_size (filter); ++n) {
-      GstStructure *s = gst_caps_get_structure (filter, n);
-      if (gst_structure_get_int (s, "channels", &channels)) {
-        if (channels == 1 || channels == 2) {
-          GValue v = { 0 };
-          g_value_init (&v, GST_TYPE_INT_RANGE);
-          gst_value_set_int_range (&v, 1, 2);
-          gst_structure_set_value (s, "channels", &v);
-          g_value_unset (&v);
-        }
+  for (n = 0; n < gst_caps_get_size (caps); ++n) {
+    GstStructure *s = gst_caps_get_structure (caps, n);
+    if (gst_structure_get_int (s, "channels", &channels)) {
+      if (channels == 1 || channels == 2) {
+        GValue v = { 0 };
+        g_value_init (&v, GST_TYPE_INT_RANGE);
+        gst_value_set_int_range (&v, 1, 2);
+        gst_structure_set_value (s, "channels", &v);
+        g_value_unset (&v);
       }
     }
   }
-  caps = gst_audio_decoder_proxy_getcaps (dec, NULL, filter);
-  if (filter)
-    gst_caps_unref (filter);
+}
+
+static void
+gst_opus_dec_value_list_append_int (GValue * list, gint i)
+{
+  GValue v = { 0 };
+
+  g_value_init (&v, G_TYPE_INT);
+  g_value_set_int (&v, i);
+  gst_value_list_append_value (list, &v);
+  g_value_unset (&v);
+}
+
+static void
+gst_opus_dec_caps_extend_rate_options (GstCaps * caps)
+{
+  unsigned n;
+  GValue v = { 0 };
+
+  g_value_init (&v, GST_TYPE_LIST);
+  gst_opus_dec_value_list_append_int (&v, 48000);
+  gst_opus_dec_value_list_append_int (&v, 24000);
+  gst_opus_dec_value_list_append_int (&v, 16000);
+  gst_opus_dec_value_list_append_int (&v, 12000);
+  gst_opus_dec_value_list_append_int (&v, 8000);
+
+  for (n = 0; n < gst_caps_get_size (caps); ++n) {
+    GstStructure *s = gst_caps_get_structure (caps, n);
+
+    gst_structure_set_value (s, "rate", &v);
+  }
+  g_value_unset (&v);
+}
+
+GstCaps *
+gst_opus_dec_getcaps (GstAudioDecoder * dec, GstCaps * filter)
+{
+  GstCaps *caps, *proxy_filter = NULL, *ret;
+
+  if (filter) {
+    proxy_filter = gst_caps_copy (filter);
+    gst_opus_dec_caps_extend_channels_options (proxy_filter);
+    gst_opus_dec_caps_extend_rate_options (proxy_filter);
+  }
+  caps = gst_audio_decoder_proxy_getcaps (dec, NULL, proxy_filter);
+  if (proxy_filter)
+    gst_caps_unref (proxy_filter);
   if (caps) {
     caps = gst_caps_make_writable (caps);
-    for (n = 0; n < gst_caps_get_size (caps); ++n) {
-      GstStructure *s = gst_caps_get_structure (caps, n);
-      if (gst_structure_get_int (s, "channels", &channels)) {
-        if (channels == 1 || channels == 2) {
-          GValue v = { 0 };
-          g_value_init (&v, GST_TYPE_INT_RANGE);
-          gst_value_set_int_range (&v, 1, 2);
-          gst_structure_set_value (s, "channels", &v);
-          g_value_unset (&v);
-        }
-      }
-    }
+    gst_opus_dec_caps_extend_channels_options (caps);
+    gst_opus_dec_caps_extend_rate_options (caps);
   }
-  return caps;
+
+  if (filter) {
+    ret = gst_caps_intersect (caps, filter);
+    gst_caps_unref (caps);
+  } else {
+    ret = caps;
+  }
+  return ret;
 }

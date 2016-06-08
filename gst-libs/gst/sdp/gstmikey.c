@@ -2204,6 +2204,7 @@ gst_mikey_message_new_from_caps (GstCaps * caps)
   GstMapInfo info;
   GstBuffer *srtpkey;
   const GValue *val;
+  const gchar *cipher, *auth;
   const gchar *srtpcipher, *srtpauth, *srtcpcipher, *srtcpauth;
 
   g_return_val_if_fail (caps != NULL && GST_IS_CAPS (caps), NULL);
@@ -2224,11 +2225,22 @@ gst_mikey_message_new_from_caps (GstCaps * caps)
   srtcpcipher = gst_structure_get_string (s, "srtcp-cipher");
   srtcpauth = gst_structure_get_string (s, "srtcp-auth");
 
-  if (srtpcipher == NULL || srtpauth == NULL || srtcpcipher == NULL ||
-      srtcpauth == NULL) {
+  /* we need srtp cipher/auth or srtcp cipher/auth */
+  if ((srtpcipher == NULL || srtpauth == NULL)
+      && (srtcpcipher == NULL || srtcpauth == NULL)) {
     GST_WARNING ("could not find the right SRTP parameters in caps");
     return NULL;
   }
+
+  /* prefer srtp cipher over srtcp */
+  cipher = srtpcipher;
+  if (cipher == NULL)
+    cipher = srtcpcipher;
+
+  /* prefer srtp auth over srtcp */
+  auth = srtpauth;
+  if (auth == NULL)
+    auth = srtcpauth;
 
   msg = gst_mikey_message_new ();
   /* unencrypted MIKEY message, we send this over TLS so this is allowed */
@@ -2248,14 +2260,14 @@ gst_mikey_message_new_from_caps (GstCaps * caps)
   byte = 1;
   gst_mikey_payload_sp_add_param (payload, GST_MIKEY_SP_SRTP_ENC_ALG, 1, &byte);
   /* encryption key length */
-  byte = enc_key_length_from_cipher_name (srtpcipher);
+  byte = enc_key_length_from_cipher_name (cipher);
   gst_mikey_payload_sp_add_param (payload, GST_MIKEY_SP_SRTP_ENC_KEY_LEN, 1,
       &byte);
   /* only HMAC-SHA1 */
   gst_mikey_payload_sp_add_param (payload, GST_MIKEY_SP_SRTP_AUTH_ALG, 1,
       &byte);
   /* authentication key length */
-  byte = auth_key_length_from_auth_name (srtpauth);
+  byte = auth_key_length_from_auth_name (auth);
   gst_mikey_payload_sp_add_param (payload, GST_MIKEY_SP_SRTP_AUTH_KEY_LEN, 1,
       &byte);
   /* we enable encryption on RTP and RTCP */
@@ -2285,6 +2297,142 @@ gst_mikey_message_new_from_caps (GstCaps * caps)
 no_key:
   GST_INFO ("No srtp key");
   return NULL;
+}
+
+#define AES_128_KEY_LEN 16
+#define AES_256_KEY_LEN 32
+#define HMAC_32_KEY_LEN 4
+#define HMAC_80_KEY_LEN 10
+
+/**
+ * gst_mikey_message_to_caps:
+ * @msg: a #GstMIKEYMessage
+ * @caps: a #GstCaps to be filled with SRTP parameters (srtp/srtcp cipher, authorization, key data)
+ *
+ * Returns: %TRUE on success
+ *
+ * Since: 1.8.1
+ */
+gboolean
+gst_mikey_message_to_caps (const GstMIKEYMessage * msg, GstCaps * caps)
+{
+  gboolean res = FALSE;
+  const GstMIKEYPayload *payload;
+  const gchar *srtp_cipher;
+  const gchar *srtp_auth;
+
+  srtp_cipher = "aes-128-icm";
+  srtp_auth = "hmac-sha1-80";
+
+  /* check the Security policy if any */
+  if ((payload = gst_mikey_message_find_payload (msg, GST_MIKEY_PT_SP, 0))) {
+    GstMIKEYPayloadSP *p = (GstMIKEYPayloadSP *) payload;
+    guint len, i;
+
+    if (p->proto != GST_MIKEY_SEC_PROTO_SRTP)
+      goto done;
+
+    len = gst_mikey_payload_sp_get_n_params (payload);
+    for (i = 0; i < len; i++) {
+      const GstMIKEYPayloadSPParam *param =
+          gst_mikey_payload_sp_get_param (payload, i);
+
+      switch (param->type) {
+        case GST_MIKEY_SP_SRTP_ENC_ALG:
+          switch (param->val[0]) {
+            case 0:
+              srtp_cipher = "null";
+              break;
+            case 2:
+            case 1:
+              srtp_cipher = "aes-128-icm";
+              break;
+            default:
+              break;
+          }
+          break;
+        case GST_MIKEY_SP_SRTP_ENC_KEY_LEN:
+          switch (param->val[0]) {
+            case AES_128_KEY_LEN:
+              srtp_cipher = "aes-128-icm";
+              break;
+            case AES_256_KEY_LEN:
+              srtp_cipher = "aes-256-icm";
+              break;
+            default:
+              break;
+          }
+          break;
+        case GST_MIKEY_SP_SRTP_AUTH_ALG:
+          switch (param->val[0]) {
+            case 0:
+              srtp_auth = "null";
+              break;
+            case 2:
+            case 1:
+              srtp_auth = "hmac-sha1-80";
+              break;
+            default:
+              break;
+          }
+          break;
+        case GST_MIKEY_SP_SRTP_AUTH_KEY_LEN:
+          switch (param->val[0]) {
+            case HMAC_32_KEY_LEN:
+              srtp_auth = "hmac-sha1-32";
+              break;
+            case HMAC_80_KEY_LEN:
+              srtp_auth = "hmac-sha1-80";
+              break;
+            default:
+              break;
+          }
+          break;
+        case GST_MIKEY_SP_SRTP_SRTP_ENC:
+          break;
+        case GST_MIKEY_SP_SRTP_SRTCP_ENC:
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  if (!(payload = gst_mikey_message_find_payload (msg, GST_MIKEY_PT_KEMAC, 0)))
+    goto done;
+  else {
+    GstMIKEYPayloadKEMAC *p = (GstMIKEYPayloadKEMAC *) payload;
+    const GstMIKEYPayload *sub;
+    GstMIKEYPayloadKeyData *pkd;
+    GstBuffer *buf;
+
+    if (p->enc_alg != GST_MIKEY_ENC_NULL || p->mac_alg != GST_MIKEY_MAC_NULL)
+      goto done;
+
+    if (!(sub = gst_mikey_payload_kemac_get_sub (payload, 0)))
+      goto done;
+
+    if (sub->type != GST_MIKEY_PT_KEY_DATA)
+      goto done;
+
+    pkd = (GstMIKEYPayloadKeyData *) sub;
+    buf =
+        gst_buffer_new_wrapped (g_memdup (pkd->key_data, pkd->key_len),
+        pkd->key_len);
+    gst_caps_set_simple (caps, "srtp-key", GST_TYPE_BUFFER, buf, NULL);
+    gst_buffer_unref (buf);
+  }
+
+  gst_caps_set_simple (caps,
+      "srtp-cipher", G_TYPE_STRING, srtp_cipher,
+      "srtp-auth", G_TYPE_STRING, srtp_auth,
+      "srtcp-cipher", G_TYPE_STRING, srtp_cipher,
+      "srtcp-auth", G_TYPE_STRING, srtp_auth, NULL);
+
+  res = TRUE;
+
+done:
+  return res;
 }
 
 /**

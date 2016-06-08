@@ -64,7 +64,6 @@
 
 #include <gst/rtp/gstrtppayloads.h>
 #include "gstsdpmessage.h"
-#include "gstmikey.h"
 
 #define FREE_STRING(field)              g_free (field); (field) = NULL
 #define REPLACE_STRING(field, val)      FREE_STRING(field); (field) = g_strdup (val)
@@ -3619,21 +3618,11 @@ gst_sdp_make_keymgmt (const gchar * uri, const gchar * base64)
   return g_strdup_printf ("prot=mikey;uri=\"%s\";data=\"%s\"", uri, base64);
 }
 
-#define AES_128_KEY_LEN 16
-#define AES_256_KEY_LEN 32
-#define HMAC_32_KEY_LEN 4
-#define HMAC_80_KEY_LEN 10
-
 static gboolean
-gst_sdp_parse_keymgmt (const gchar * keymgmt, GstCaps * caps)
+gst_sdp_parse_keymgmt (const gchar * keymgmt, GstMIKEYMessage ** mikey)
 {
-  gboolean res = FALSE;
   gsize size;
   guchar *data;
-  GstMIKEYMessage *msg;
-  const GstMIKEYPayload *payload;
-  const gchar *srtp_cipher;
-  const gchar *srtp_auth;
   gchar *orig_value;
   gchar *p, *kmpid;
 
@@ -3656,128 +3645,76 @@ gst_sdp_parse_keymgmt (const gchar * keymgmt, GstCaps * caps)
   if (data == NULL)
     return FALSE;
 
-  msg = gst_mikey_message_new_from_data (data, size, NULL, NULL);
+  *mikey = gst_mikey_message_new_from_data (data, size, NULL, NULL);
   g_free (data);
-  if (msg == NULL)
-    return FALSE;
 
-  srtp_cipher = "aes-128-icm";
-  srtp_auth = "hmac-sha1-80";
+  return (*mikey != NULL);
+}
 
-  /* check the Security policy if any */
-  if ((payload = gst_mikey_message_find_payload (msg, GST_MIKEY_PT_SP, 0))) {
-    GstMIKEYPayloadSP *p = (GstMIKEYPayloadSP *) payload;
-    guint len, i;
+static GstSDPResult
+sdp_add_attributes_to_keymgmt (GArray * attributes, GstMIKEYMessage ** mikey)
+{
+  GstSDPResult res = GST_SDP_OK;
 
-    if (p->proto != GST_MIKEY_SEC_PROTO_SRTP)
-      goto done;
+  if (attributes->len > 0) {
+    guint i;
+    for (i = 0; i < attributes->len; i++) {
+      GstSDPAttribute *attr = &g_array_index (attributes, GstSDPAttribute, i);
 
-    len = gst_mikey_payload_sp_get_n_params (payload);
-    for (i = 0; i < len; i++) {
-      const GstMIKEYPayloadSPParam *param =
-          gst_mikey_payload_sp_get_param (payload, i);
-
-      switch (param->type) {
-        case GST_MIKEY_SP_SRTP_ENC_ALG:
-          switch (param->val[0]) {
-            case 0:
-              srtp_cipher = "null";
-              break;
-            case 2:
-            case 1:
-              srtp_cipher = "aes-128-icm";
-              break;
-            default:
-              break;
-          }
-          break;
-        case GST_MIKEY_SP_SRTP_ENC_KEY_LEN:
-          switch (param->val[0]) {
-            case AES_128_KEY_LEN:
-              srtp_cipher = "aes-128-icm";
-              break;
-            case AES_256_KEY_LEN:
-              srtp_cipher = "aes-256-icm";
-              break;
-            default:
-              break;
-          }
-          break;
-        case GST_MIKEY_SP_SRTP_AUTH_ALG:
-          switch (param->val[0]) {
-            case 0:
-              srtp_auth = "null";
-              break;
-            case 2:
-            case 1:
-              srtp_auth = "hmac-sha1-80";
-              break;
-            default:
-              break;
-          }
-          break;
-        case GST_MIKEY_SP_SRTP_AUTH_KEY_LEN:
-          switch (param->val[0]) {
-            case HMAC_32_KEY_LEN:
-              srtp_auth = "hmac-sha1-32";
-              break;
-            case HMAC_80_KEY_LEN:
-              srtp_auth = "hmac-sha1-80";
-              break;
-            default:
-              break;
-          }
-          break;
-        case GST_MIKEY_SP_SRTP_SRTP_ENC:
-          break;
-        case GST_MIKEY_SP_SRTP_SRTCP_ENC:
-          break;
-        default:
-          break;
+      if (g_str_equal (attr->key, "key-mgmt")) {
+        res = gst_sdp_parse_keymgmt (attr->value, mikey);
+        break;
       }
     }
   }
 
-  if (!(payload = gst_mikey_message_find_payload (msg, GST_MIKEY_PT_KEMAC, 0)))
-    goto done;
-  else {
-    GstMIKEYPayloadKEMAC *p = (GstMIKEYPayloadKEMAC *) payload;
-    const GstMIKEYPayload *sub;
-    GstMIKEYPayloadKeyData *pkd;
-    GstBuffer *buf;
-
-    if (p->enc_alg != GST_MIKEY_ENC_NULL || p->mac_alg != GST_MIKEY_MAC_NULL)
-      goto done;
-
-    if (!(sub = gst_mikey_payload_kemac_get_sub (payload, 0)))
-      goto done;
-
-    if (sub->type != GST_MIKEY_PT_KEY_DATA)
-      goto done;
-
-    pkd = (GstMIKEYPayloadKeyData *) sub;
-    buf =
-        gst_buffer_new_wrapped (g_memdup (pkd->key_data, pkd->key_len),
-        pkd->key_len);
-    gst_caps_set_simple (caps, "srtp-key", GST_TYPE_BUFFER, buf, NULL);
-    gst_buffer_unref (buf);
-  }
-
-  gst_caps_set_simple (caps,
-      "srtp-cipher", G_TYPE_STRING, srtp_cipher,
-      "srtp-auth", G_TYPE_STRING, srtp_auth,
-      "srtcp-cipher", G_TYPE_STRING, srtp_cipher,
-      "srtcp-auth", G_TYPE_STRING, srtp_auth, NULL);
-
-  res = TRUE;
-done:
-  gst_mikey_message_unref (msg);
-
   return res;
 }
 
+/**
+ * gst_sdp_message_parse_keymgmt:
+ * @msg: a #GstSDPMessage
+ * @mikey: (out) (transfer full): pointer to new #GstMIKEYMessage
+ *
+ * Creates a new #GstMIKEYMessage after parsing the key-mgmt attribute
+ * from a #GstSDPMessage.
+ *
+ * Returns: a #GstSDPResult.
+ *
+ * Since: 1.8.1
+ */
+GstSDPResult
+gst_sdp_message_parse_keymgmt (const GstSDPMessage * msg,
+    GstMIKEYMessage ** mikey)
+{
+  g_return_val_if_fail (msg != NULL, GST_SDP_EINVAL);
+
+  return sdp_add_attributes_to_keymgmt (msg->attributes, mikey);
+}
+
+/**
+ * gst_sdp_media_parse_keymgmt:
+ * @media: a #GstSDPMedia
+ * @mikey: (out) (transfer full): pointer to new #GstMIKEYMessage
+ *
+ * Creates a new #GstMIKEYMessage after parsing the key-mgmt attribute
+ * from a #GstSDPMedia.
+ *
+ * Returns: a #GstSDPResult.
+ *
+ * Since: 1.8.1
+ */
+GstSDPResult
+gst_sdp_media_parse_keymgmt (const GstSDPMedia * media,
+    GstMIKEYMessage ** mikey)
+{
+  g_return_val_if_fail (media != NULL, GST_SDP_EINVAL);
+
+  return sdp_add_attributes_to_keymgmt (media->attributes, mikey);
+}
+
 static GstSDPResult
-sdp_addtributes_to_caps (GArray * attributes, GstCaps * caps)
+sdp_add_attributes_to_caps (GArray * attributes, GstCaps * caps)
 {
   if (attributes->len > 0) {
     GstStructure *s;
@@ -3802,10 +3739,8 @@ sdp_addtributes_to_caps (GArray * attributes, GstCaps * caps)
         continue;
       if (!strcmp (key, "framesize"))
         continue;
-      if (g_str_equal (key, "key-mgmt")) {
-        gst_sdp_parse_keymgmt (attr->value, caps);
+      if (!strcmp (key, "key-mgmt"))
         continue;
-      }
 
       /* string must be valid UTF8 */
       if (!g_utf8_validate (attr->value, -1, NULL))
@@ -3839,10 +3774,26 @@ sdp_addtributes_to_caps (GArray * attributes, GstCaps * caps)
 GstSDPResult
 gst_sdp_message_attributes_to_caps (const GstSDPMessage * msg, GstCaps * caps)
 {
+  GstSDPResult res;
+  GstMIKEYMessage *mikey = NULL;
+
   g_return_val_if_fail (msg != NULL, GST_SDP_EINVAL);
   g_return_val_if_fail (caps != NULL && GST_IS_CAPS (caps), GST_SDP_EINVAL);
 
-  return sdp_addtributes_to_caps (msg->attributes, caps);
+  res = gst_sdp_message_parse_keymgmt (msg, &mikey);
+  if (mikey) {
+    if (gst_mikey_message_to_caps (mikey, caps)) {
+      res = GST_SDP_EINVAL;
+      goto done;
+    }
+  }
+
+  res = sdp_add_attributes_to_caps (msg->attributes, caps);
+
+done:
+  if (mikey)
+    gst_mikey_message_unref (mikey);
+  return res;
 }
 
 /**
@@ -3859,8 +3810,24 @@ gst_sdp_message_attributes_to_caps (const GstSDPMessage * msg, GstCaps * caps)
 GstSDPResult
 gst_sdp_media_attributes_to_caps (const GstSDPMedia * media, GstCaps * caps)
 {
+  GstSDPResult res;
+  GstMIKEYMessage *mikey = NULL;
+
   g_return_val_if_fail (media != NULL, GST_SDP_EINVAL);
   g_return_val_if_fail (caps != NULL && GST_IS_CAPS (caps), GST_SDP_EINVAL);
 
-  return sdp_addtributes_to_caps (media->attributes, caps);
+  res = gst_sdp_media_parse_keymgmt (media, &mikey);
+  if (mikey) {
+    if (!gst_mikey_message_to_caps (mikey, caps)) {
+      res = GST_SDP_EINVAL;
+      goto done;
+    }
+  }
+
+  res = sdp_add_attributes_to_caps (media->attributes, caps);
+
+done:
+  if (mikey)
+    gst_mikey_message_unref (mikey);
+  return res;
 }
