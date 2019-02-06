@@ -140,9 +140,10 @@ DEB_CONFIGURE_EXTRA_FLAGS += \
 	--with-install-plugins-helper="/usr/bin/gstreamer-codec-install"
 
 # only build the docs if gtk-doc-tools is installed, i.e. binary-indep is called
-ifeq ($(shell test "`dpkg -l gtk-doc-tools | grep ^ii`" && echo binary-indep),binary-indep)
-DEB_CONFIGURE_EXTRA_FLAGS += --enable-gtk-doc
-endif
+# Kurento: Disable building docs
+#ifeq ($(shell test "`dpkg -l gtk-doc-tools | grep ^ii`" && echo binary-indep),binary-indep)
+#DEB_CONFIGURE_EXTRA_FLAGS += --enable-gtk-doc
+#endif
 
 clean::
 	# get rid of the symlinks
