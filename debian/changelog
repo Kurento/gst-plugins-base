@@ -1,4 +1,4 @@
-gst-plugins-base1.5 (1.8.1-1kurento1) UNRELEASED; urgency=medium
+gst-plugins-base1.5 (1.8.1-1kurento2) testing; urgency=medium
 
   [ David Fernandez ]
   * Remove symbols file to avoid error in debian package generation
@@ -16,8 +16,9 @@ gst-plugins-base1.5 (1.8.1-1kurento1) UNRELEASED; urgency=medium
 
   [ Juan Navarro ]
   * debian: Disable docs for Ubuntu 18.04 build
+  * fixup! debian: Disable docs for Ubuntu 18.04 build
 
- -- Juan Navarro <juan.navarro@gmx.es>  Wed, 06 Feb 2019 18:47:32 +0100
+ -- Juan Navarro <juan.navarro@gmx.es>  Tue, 17 Dec 2019 13:28:15 +0100
 
 gst-plugins-base1.5 (1.5.0.1) experimental; urgency=medium
 
